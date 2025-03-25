@@ -14,10 +14,10 @@ export default function LoginPage() {
 
   return (
     <div>
-      <h1>Login</h1>
+      <h1>Inicio de Sesión</h1>
       <form onSubmit={handleSubmit}>
         <div>
-          <label>Username:</label>
+          <label>Usuario:</label>
           <input
             type="text"
             value={username}
@@ -26,7 +26,7 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label>Password:</label>
+          <label>Contraseña:</label>
           <input
             type="password"
             value={password}
@@ -34,7 +34,7 @@ export default function LoginPage() {
             required
           />
         </div>
-        <button type="submit">Login</button>
+        <button type="submit">Iniciar Sesión</button>
       </form>
     </div>
   );
