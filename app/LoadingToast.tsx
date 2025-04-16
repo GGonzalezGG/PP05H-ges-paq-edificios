@@ -50,3 +50,35 @@ export default function LoadingToast({ isLoading }: Props) {
     </div>
   );
 }
+
+
+
+
+/* Para poder usarlo en otro archivo:
+import { useState, useEffect } from "preact/hooks";
+import LoadingToast from "./LoadingToast.tsx";
+
+export default function PaquetesPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [paquetes, setPaquetes] = useState([]);
+
+  useEffect(() => {
+    fetch("/api/paquetes") // Reemplazar con la ruta del api
+      .then((res) => res.json())
+      .then((data) => {
+        setPaquetes(data);
+        setIsLoading(false);
+      });
+  }, []);
+
+  return (
+    <div>
+      <LoadingToast isLoading={isLoading} />
+      <h1>Paquetes Recibidos</h1>
+      {paquetes.map((p) => (
+        <div key={p.id}>{p.nombre}</div>
+      ))}
+    </div>
+  );
+}
+*/
