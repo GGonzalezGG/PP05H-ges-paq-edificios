@@ -6,6 +6,7 @@
     "npm:@types/node@20": "20.17.25",
     "npm:@types/react-dom@19": "19.0.4_@types+react@19.0.12",
     "npm:@types/react@19": "19.0.12",
+    "npm:cookies-next@^5.1.0": "5.1.0_next@15.2.3__react@19.0.0__react-dom@19.0.0___react@19.0.0_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:eslint-config-next@15.2.3": "15.2.3_eslint@9.23.0_typescript@5.8.2_@typescript-eslint+parser@8.27.0__eslint@9.23.0__typescript@5.8.2_eslint-plugin-import@2.31.0__eslint@9.23.0",
     "npm:eslint@9": "9.23.0",
     "npm:next@15.2.3": "15.2.3_react@19.0.0_react-dom@19.0.0__react@19.0.0",
@@ -711,6 +712,17 @@
     },
     "concat-map@0.0.1": {
       "integrity": "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg=="
+    },
+    "cookie@1.0.2": {
+      "integrity": "sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA=="
+    },
+    "cookies-next@5.1.0_next@15.2.3__react@19.0.0__react-dom@19.0.0___react@19.0.0_react@19.0.0_react-dom@19.0.0__react@19.0.0": {
+      "integrity": "sha512-9Ekne+q8hfziJtnT9c1yDUBqT0eDMGgPrfPl4bpR3xwQHLTd/8gbSf6+IEkP/pjGsDZt1TGbC6emYmFYRbIXwQ==",
+      "dependencies": [
+        "cookie",
+        "next",
+        "react"
+      ]
     },
     "cross-spawn@7.0.6": {
       "integrity": "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==",
@@ -2335,6 +2347,8 @@
     "https://deno.land/std@0.152.0/path/posix.ts": "c1f7afe274290ea0b51da07ee205653b2964bd74909a82deb07b69a6cc383aaa",
     "https://deno.land/std@0.152.0/path/separator.ts": "fe1816cb765a8068afb3e8f13ad272351c85cbc739af56dacfc7d93d710fe0f9",
     "https://deno.land/std@0.152.0/path/win32.ts": "bd7549042e37879c68ff2f8576a25950abbfca1d696d41d82c7bca0b7e6f452c",
+    "https://deno.land/std@0.161.0/encoding/base64.ts": "c57868ca7fa2fbe919f57f88a623ad34e3d970d675bdc1ff3a9d02bba7409db2",
+    "https://deno.land/std@0.161.0/encoding/base64url.ts": "a5f82a9fa703bd85a5eb8e7c1296bc6529e601ebd9642cc2b5eaa6b38fa9e05a",
     "https://deno.land/std@0.176.0/_util/asserts.ts": "178dfc49a464aee693a7e285567b3d0b555dc805ff490505a8aae34f9cfb1462",
     "https://deno.land/std@0.176.0/_util/os.ts": "d932f56d41e4f6a6093d56044e29ce637f8dcc43c5a90af43504a889cf1775e3",
     "https://deno.land/std@0.176.0/encoding/hex.ts": "50f8c95b52eae24395d3dfcb5ec1ced37c5fe7610ef6fffdcc8b0fdc38e3b32f",
@@ -2442,6 +2456,15 @@
     "https://deno.land/std@0.224.0/path/windows/resolve.ts": "8dae1dadfed9d46ff46cc337c9525c0c7d959fb400a6308f34595c45bdca1972",
     "https://deno.land/std@0.224.0/path/windows/to_file_url.ts": "40e560ee4854fe5a3d4d12976cef2f4e8914125c81b11f1108e127934ced502e",
     "https://deno.land/std@0.224.0/path/windows/to_namespaced_path.ts": "4ffa4fb6fae321448d5fe810b3ca741d84df4d7897e61ee29be961a6aac89a4c",
+    "https://deno.land/x/bcrypt@v0.4.1/mod.ts": "ff09bdae282583cf5f7d87efe37ddcecef7f14f6d12e8b8066a3058db8c6c2f7",
+    "https://deno.land/x/bcrypt@v0.4.1/src/bcrypt/base64.ts": "b8266450a4f1eb6960f60f2f7986afc4dde6b45bd2d7ee7ba10789e67e17b9f7",
+    "https://deno.land/x/bcrypt@v0.4.1/src/bcrypt/bcrypt.ts": "ec221648cc6453ea5e3803bc817c01157dada06aa6f7a0ba6b9f87aae32b21e2",
+    "https://deno.land/x/bcrypt@v0.4.1/src/main.ts": "08d201b289c8d9c46f8839c69cd6625b213863db29775c7a200afc3b540e64f8",
+    "https://deno.land/x/djwt@v2.8/algorithm.ts": "fa4c7354ab9f4808d38104fdc6f21c8270f65f109ed84136d4fe31a4504426d4",
+    "https://deno.land/x/djwt@v2.8/deps.ts": "261b7b6bfe2602329d8f9de2938c2a898cd6dfa746b3454ae415df2c53e6ae4d",
+    "https://deno.land/x/djwt@v2.8/mod.ts": "7abba8518688e88648882a95161b42391ac6043c142b1ab491b36f712189e1e1",
+    "https://deno.land/x/djwt@v2.8/signature.ts": "a5649368a4b433b2810e7d47f53661fe3b0f7fe1778cb49234ceae3d6e861185",
+    "https://deno.land/x/djwt@v2.8/util.ts": "0d78272bd23a4656ceabe137d496fcca37cf3de36212477642aa5d85a880d87a",
     "https://deno.land/x/plug@1.0.1/deps.ts": "35ea2acd5e3e11846817a429b7ef4bec47b80f2d988f5d63797147134cbd35c2",
     "https://deno.land/x/plug@1.0.1/download.ts": "8d6a023ade0806a0653b48cd5f6f8b15fcfaa1dbf2aa1f4bc90fc5732d27b144",
     "https://deno.land/x/plug@1.0.1/mod.ts": "5dec80ee7a3a325be45c03439558531bce7707ac118f4376cebbd6740ff24bfb",
@@ -2483,6 +2506,7 @@
         "npm:@types/node@20",
         "npm:@types/react-dom@19",
         "npm:@types/react@19",
+        "npm:cookies-next@^5.1.0",
         "npm:eslint-config-next@15.2.3",
         "npm:eslint@9",
         "npm:next@15.2.3",
