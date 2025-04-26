@@ -3,7 +3,8 @@ import Link from 'next/link';
 const routes = [
   { path: '/user', label: 'User Dashboard' },
   { path: '/admin', label: 'Admin Panel' },
-  { path: '/login', label: 'Login' }
+  { path: '/login', label: 'Login' },
+  { path: '/api/test-email', label: 'Prueba Mail' }
 ];
 
 export default function HomePage() {
