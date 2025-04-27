@@ -6,10 +6,13 @@ import {
   getUsersByDepartamento,
   registrarPaquete,
   crearNotificacion,
-  getAllPaquetes
+  getAllPaquetes,
+  getUsuarioContactInfo,
+  registrarEstadoNotificacionWhatsApp
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
+import { enviarMensajeTemplate, enviarMensajeDetallado } from "./app/services/whatsappService.ts";
 
 // Puerto para el servidor API
 const API_PORT = 8000;
@@ -163,6 +166,53 @@ async function handler(req: Request): Promise<Response> {
         descripcion || null
       );
       
+      // Obtener información de contacto del usuario
+      const contactoUsuario = await getUsuarioContactInfo(idDestinatario);
+      
+      let whatsappStatus = "no_enviado";
+      let whatsappMessage = "No se intentó enviar notificación por WhatsApp";
+      
+      // Intentar enviar notificación por WhatsApp si tenemos número de teléfono
+      if (contactoUsuario.success && contactoUsuario.data.telefono) {
+        try {
+          console.log("Enviando notificación por WhatsApp");
+          const nombreCompleto = `${contactoUsuario.data.nombre} ${contactoUsuario.data.apellido}`;
+          
+          // Enviar mensaje template
+          const envioExitoso = await enviarMensajeTemplate(
+            contactoUsuario.data.telefono
+          );
+          
+          if (envioExitoso) {
+            // Registrar estado de notificación en la base de datos
+            await registrarEstadoNotificacionWhatsApp(
+              paqueteResult.paqueteId,
+              idDestinatario,
+              "template_enviado"
+            );
+            
+            whatsappStatus = "template_enviado";
+            whatsappMessage = "Mensaje template de WhatsApp enviado exitosamente";
+          } else {
+            await registrarEstadoNotificacionWhatsApp(
+              paqueteResult.paqueteId,
+              idDestinatario,
+              "error_envio"
+            );
+            
+            whatsappStatus = "error_envio";
+            whatsappMessage = "Error al enviar mensaje template de WhatsApp";
+          }
+        } catch (whatsappError) {
+          console.error("Error en notificación WhatsApp:", whatsappError);
+          whatsappStatus = "error";
+          whatsappMessage = "Error en el sistema de notificaciones WhatsApp";
+        }
+      } else {
+        whatsappStatus = "sin_telefono";
+        whatsappMessage = "El usuario no tiene número de teléfono registrado";
+      }
+      
       return new Response(JSON.stringify({
         success: true,
         message: "Paquete y notificación registrados correctamente",
@@ -174,6 +224,10 @@ async function handler(req: Request): Promise<Response> {
           notificacion: {
             mensaje: notificacionResult.mensaje,
             fechaEnvio: notificacionResult.fechaEnvio
+          },
+          whatsapp: {
+            status: whatsappStatus,
+            message: whatsappMessage
           }
         }
       }), {
@@ -199,6 +253,166 @@ async function handler(req: Request): Promise<Response> {
       });
     }
   }
+
+  // Webhook para recibir notificaciones de WhatsApp
+if (url.pathname === "/api/webhook/whatsapp" && req.method === "POST") {
+  try {
+    const body = await req.json();
+    
+    // Procesar la entrada del webhook
+    if (body.object && body.entry && 
+        body.entry.length > 0 && 
+        body.entry[0].changes && 
+        body.entry[0].changes.length > 0) {
+      
+      const change = body.entry[0].changes[0];
+      
+      // Verificar si es un mensaje entrante
+      if (change.value && 
+          change.value.messages && 
+          change.value.messages.length > 0) {
+        
+        const message = change.value.messages[0];
+        const from = message.from; // Número de teléfono del remitente
+        const messageId = message.id;
+        const timestamp = message.timestamp;
+        const messageText = message.text?.body || "";
+        
+        console.log(`Mensaje recibido de ${from}: ${messageText}`);
+        
+        // Buscar el usuario por número de teléfono y verificar si tiene paquetes pendientes
+        const db = new DB(config.dbPath);
+        
+        try {
+          // Buscar usuario por teléfono
+          const telefonoFormateado = from.replace(/^\+/, ""); // Eliminar el + inicial si existe
+          
+          const usuarioQuery = `
+            SELECT ID_usuario, nombre, apellido 
+            FROM Usuarios 
+            WHERE telefono LIKE ?
+          `;
+          
+          const usuarioResult = db.query(usuarioQuery, [`%${telefonoFormateado}%`]);
+          const usuarioData = Array.from(usuarioResult);
+          
+          if (usuarioData.length === 0) {
+            console.log(`No se encontró usuario para el teléfono ${from}`);
+            return new Response(JSON.stringify({ success: true }), {
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders
+              },
+              status: 200
+            });
+          }
+          
+          const idUsuario = usuarioData[0][0] as number;
+          const nombreUsuario = usuarioData[0][1] as string;
+          const apellidoUsuario = usuarioData[0][2] as string;
+          
+          // Buscar el último paquete registrado para este usuario
+          const paqueteQuery = `
+            SELECT p.ID_paquete, p.fecha_entrega, p.ubicacion, p.fecha_limite, p.descripcion, 
+                  nw.estado
+            FROM Paquetes p
+            LEFT JOIN NotificacionesWhatsApp nw ON p.ID_paquete = nw.ID_paquete
+            WHERE p.ID_userDestinatario = ?
+            AND p.fecha_retiro IS NULL
+            AND (nw.estado = 'template_enviado' OR nw.estado IS NULL)
+            ORDER BY p.fecha_entrega DESC
+            LIMIT 1
+          `;
+          
+          const paqueteResult = db.query(paqueteQuery, [idUsuario]);
+          const paqueteData = Array.from(paqueteResult);
+          
+          if (paqueteData.length > 0) {
+            const paqueteId = paqueteData[0][0] as number;
+            const fechaEntrega = paqueteData[0][1] as string;
+            const ubicacion = paqueteData[0][2] as string;
+            const fechaLimite = paqueteData[0][3] as string | null;
+            const descripcion = paqueteData[0][4] as string | null;
+            
+            // Actualizar estado de notificación a respondido
+            await registrarEstadoNotificacionWhatsApp(
+              paqueteId,
+              idUsuario,
+              "respuesta_recibida",
+              messageId
+            );
+            
+            // Enviar detalles del paquete
+            await enviarMensajeDetallado(
+              from,
+              {
+                fecha: fechaEntrega,
+                ubicacion: ubicacion,
+                descripcion: descripcion || undefined
+              }
+            );
+            
+            // Actualizar estado de notificación
+            await registrarEstadoNotificacionWhatsApp(
+              paqueteId,
+              idUsuario,
+              "detalles_enviados",
+              messageId
+            );
+          } else {
+            console.log(`No se encontraron paquetes pendientes para el usuario ${idUsuario}`);
+          }
+        } finally {
+          db.close();
+        }
+      }
+    }
+    
+    return new Response(JSON.stringify({ success: true }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error en webhook de WhatsApp:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al procesar webhook"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// Endpoint GET para verificar webhook de WhatsApp
+if (url.pathname === "/api/webhook/whatsapp" && req.method === "GET") {
+  // Verificar token de verificación que proporciona WhatsApp
+  const mode = url.searchParams.get("hub.mode");
+  const token = url.searchParams.get("hub.verify_token");
+  const challenge = url.searchParams.get("hub.challenge");
+  
+  const verifyToken = "TU_TOKEN_DE_VERIFICACION"; // Define tu token de verificación
+  
+  if (mode === "subscribe" && token === verifyToken) {
+    console.log("Webhook verificado exitosamente");
+    return new Response(challenge, {
+      headers: corsHeaders,
+      status: 200
+    });
+  } else {
+    return new Response("Verificación fallida", {
+      headers: corsHeaders,
+      status: 403
+    });
+  }
+}
   
   // NUEVO ENDPOINT: Obtener todos los paquetes (para panel de administración)
   if (url.pathname === "/api/paquetes" && req.method === "GET") {

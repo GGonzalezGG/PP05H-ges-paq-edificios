@@ -260,3 +260,113 @@ export function getAllPaquetes() {
     db.close();
   }
 }
+
+// Función para obtener el teléfono y nombre del usuario por ID
+export function getUsuarioContactInfo(idUsuario: number) {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      SELECT nombre, apellido, telefono
+      FROM Usuarios
+      WHERE ID_usuario = ?
+    `;
+    
+    const result = db.query(query, [idUsuario]);
+    const userData = Array.from(result);
+    
+    if (userData.length === 0) {
+      return {
+        success: false,
+        error: "Usuario no encontrado"
+      };
+    }
+    
+    return {
+      success: true,
+      data: {
+        nombre: userData[0][0] as string,
+        apellido: userData[0][1] as string,
+        telefono: userData[0][2] as string
+      }
+    };
+  } catch (error) {
+    console.error("Error al obtener información de contacto:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para registrar un estado de notificación de WhatsApp
+export function registrarEstadoNotificacionWhatsApp(
+  idPaquete: number,
+  idUsuario: number,
+  estado: string,
+  mensajeId?: string
+) {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      INSERT INTO NotificacionesWhatsApp (
+        ID_paquete,
+        ID_usuario,
+        estado,
+        mensaje_id,
+        fecha_creacion
+      ) VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    const fechaCreacion = new Date().toISOString();
+    
+    db.query(query, [
+      idPaquete,
+      idUsuario,
+      estado,
+      mensajeId || null,
+      fechaCreacion
+    ]);
+    
+    return {
+      success: true,
+      fechaCreacion
+    };
+  } catch (error) {
+    console.error("Error al registrar estado de notificación WhatsApp:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para actualizar el estado de una notificación de WhatsApp
+export function actualizarEstadoNotificacionWhatsApp(
+  mensajeId: string,
+  nuevoEstado: string
+) {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      UPDATE NotificacionesWhatsApp
+      SET estado = ?, fecha_actualizacion = ?
+      WHERE mensaje_id = ?
+    `;
+    
+    const fechaActualizacion = new Date().toISOString();
+    
+    db.query(query, [
+      nuevoEstado,
+      fechaActualizacion,
+      mensajeId
+    ]);
+    
+    return {
+      success: true,
+      fechaActualizacion
+    };
+  } catch (error) {
+    console.error("Error al actualizar estado de notificación WhatsApp:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}

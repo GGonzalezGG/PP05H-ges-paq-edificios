@@ -52,6 +52,10 @@ VALUES
   (3, 'mlopez', 'password2', 'Depto A', 0, 34567890, 'María', 'López', 'maria@example.com', '987654323', 0),
   (4, 'csoto', 'password3', 'Depto C', 0, 45678901, 'Carlos', 'Soto', 'carlos@example.com', '987654324', 0);
 
+INSERT INTO Usuarios (ID_usuario, username, password, N_departamento, admin, rut, nombre, apellido, correo, telefono, reitro_compartido)
+VALUES
+  (5, 'guille', 'password', 'Depto1', 1, 21500000, 'Guillermo', 'González', 'gg@example.com', '993226177', 1)
+
 -- paquetes
 INSERT INTO Paquetes (ID_pack, ID_userDestinatario, ID_userRetirador, fecha_entrega, fecha_limite, fecha_retiro, ubicacion)
 VALUES
@@ -75,8 +79,23 @@ VALUES
   (1, 2, 1, 'El paquete llegó con daño en la caja.', 'pendiente'),
   (2, 3, 2, 'El paquete nunca fue entregado.', 'en proceso');
 
+SELECT * FROM NotificacionesWhatsApp
+
+-- Crear tabla para registro de notificaciones WhatsApp
+CREATE TABLE IF NOT EXISTS NotificacionesWhatsApp (
+  ID_notificacion INTEGER PRIMARY KEY AUTOINCREMENT,
+  ID_paquete INTEGER NOT NULL,
+  ID_usuario INTEGER NOT NULL,
+  mensaje_id TEXT,
+  estado TEXT NOT NULL, -- 'template_enviado', 'error_envio', 'respuesta_recibida', 'detalles_enviados'
+  fecha_creacion TEXT NOT NULL,
+  fecha_actualizacion TEXT,
+  FOREIGN KEY (ID_paquete) REFERENCES Paquetes(ID_pack),
+  FOREIGN KEY (ID_usuario) REFERENCES Usuarios(ID_usuario)
+);
 -- borrar todo
 -- DROP TABLE IF EXISTS Usuarios;
 -- DROP TABLE IF EXISTS Paquetes;
 -- DROP TABLE IF EXISTS Notificaciones;
 -- DROP TABLE IF EXISTS reclamos;
+-- DROP TABLE IF EXISTS NotificacionesWhatsApp;
