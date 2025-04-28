@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import RouteGuard from "../components/RouteGuard";
 import RegistroPaqueteForm from "../components/RegistroPaqueteForm";
 
+import { ToastContainer } from 'react-toastify';
+import { showLoadingToast, hideLoadingToast } from './toastLoading';
+import 'react-toastify/dist/ReactToastify.css';
+
+
 interface Usuario {
   id: number;
   username: string;
