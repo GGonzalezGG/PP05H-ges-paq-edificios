@@ -102,6 +102,8 @@ export default function AdminPage() {
 
   const fetchPaquetes = async () => {
     try {
+      showLoadingToast();
+
       const token = localStorage.getItem("authToken");
       
       if (!token) {
@@ -110,6 +112,8 @@ export default function AdminPage() {
       }
       
       console.log("Obteniendo paquetes...");
+
+      hideLoadingToast();
       const response = await fetch("http://localhost:8000/api/paquetes", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -159,7 +163,13 @@ export default function AdminPage() {
 
   // Función para refrescar la lista de paquetes después de registrar uno nuevo
   const refreshPaquetes = () => {
+
+    showLoadingToast();
+
     fetchPaquetes();
+
+    hideLoadingToast();
+    
   };
 
   return (
