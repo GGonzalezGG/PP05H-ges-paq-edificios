@@ -5,9 +5,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import RouteGuard from "../components/RouteGuard";
 import RegistroPaqueteForm from "../components/RegistroPaqueteForm";
-
 import { ToastContainer } from 'react-toastify';
-import { showLoadingToast, hideLoadingToast } from './toastLoading';
+import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
 import 'react-toastify/dist/ReactToastify.css';
 
 
@@ -107,6 +106,7 @@ export default function AdminPage() {
 
   const fetchPaquetes = async () => {
     try {
+
       showLoadingToast();
 
       const token = localStorage.getItem("authToken");
@@ -119,6 +119,7 @@ export default function AdminPage() {
       console.log("Obteniendo paquetes...");
 
       hideLoadingToast();
+
       const response = await fetch("http://localhost:8000/api/paquetes", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -168,27 +169,25 @@ export default function AdminPage() {
 
   // Función para refrescar la lista de paquetes después de registrar uno nuevo
   const refreshPaquetes = () => {
-
     showLoadingToast();
 
     fetchPaquetes();
 
     hideLoadingToast();
-    
   };
 
   return (
     <RouteGuard adminOnly={true}>
-      <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-slate-100 px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Panel de Administrador</h1>
+        <h1 className="text-4xl font-bold text-zinc-800 mb-1">Panel de Administrador</h1>
           <div>
-            <p className="text-gray-600">
-              Bienvenido, {userData?.nombre} {userData?.apellido}
+            <p className="text-gray-500 text-sm">
+              Bienvenido/a, <span className="font-semibold">{userData?.nombre} {userData?.apellido}</span>
             </p>
             <button
               onClick={handleLogout}
-              className="text-sm text-blue-600 hover:underline"
+              className="bg-red-500 hover:bg-red-600 text-white text-sm px-5 py-1 rounded-md shadow-md transition"
             >
               Cerrar sesión
             </button>
@@ -201,10 +200,10 @@ export default function AdminPage() {
             <li className="mr-2">
               <button
                 onClick={() => setActiveTab("usuarios")}
-                className={`inline-block p-4 border-b-2 ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
                   activeTab === "usuarios"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent hover:text-gray-600 hover:border-gray-300"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 Usuarios
@@ -213,10 +212,10 @@ export default function AdminPage() {
             <li className="mr-2">
               <button
                 onClick={() => setActiveTab("paquetes")}
-                className={`inline-block p-4 border-b-2 ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
                   activeTab === "paquetes"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent hover:text-gray-600 hover:border-gray-300"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 Paquetes
@@ -225,10 +224,10 @@ export default function AdminPage() {
             <li className="mr-2">
               <button
                 onClick={() => setActiveTab("registrar")}
-                className={`inline-block p-4 border-b-2 ${
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
                   activeTab === "registrar"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent hover:text-gray-600 hover:border-gray-300"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 Registrar paquete
@@ -240,33 +239,33 @@ export default function AdminPage() {
         {/* Contenido de la pestaña de usuarios */}
         {activeTab === "usuarios" && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Lista de usuarios</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Lista de usuarios</h2>
             {isLoadingUsers ? (
-              <div className="flex justify-center">
+              <div className="flex justify-center py-10">
                 <p>Cargando usuarios...</p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-lg border text-zinc-950">
                 {users.length > 0 ? (
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Usuario
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Nombre completo
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Departamento
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           RUT
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Contacto
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Rol
                         </th>
                       </tr>
@@ -307,15 +306,16 @@ export default function AdminPage() {
 
         {/* Contenido de la pestaña de paquetes */}
         {activeTab === "paquetes" && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Lista de paquetes</h2>
+          <div >
+            <h2 className="text-2xl font-semibold text-zinc-800">Lista de paquetes</h2>
             <div className="mb-4">
               <button 
                 onClick={refreshPaquetes}
-                className="bg-blue-600 text-white py-1 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
               >
                 Actualizar lista
               </button>
+              <ToastContainer position="top-right" autoClose={5000} hideProgressBar />
             </div>
             {isLoadingPaquetes ? (
               <div className="flex justify-center">
@@ -324,28 +324,28 @@ export default function AdminPage() {
             ) : (
               <div className="overflow-x-auto rounded-lg border text-zinc-950">
                 {paquetes.length > 0 ? (
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           ID
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Destinatario
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Departamento
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Fecha Entrega
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Fecha Límite
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Ubicación
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-700">
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
                           Estado
                         </th>
                       </tr>
@@ -373,11 +373,11 @@ export default function AdminPage() {
                           </td>
                           <td className="whitespace-nowrap px-6 py-4">
                             {paquete.fechaRetiro ? (
-                              <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
                                 Retirado
                               </span>
                             ) : (
-                              <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                              <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
                                 Pendiente
                               </span>
                             )}
@@ -399,7 +399,7 @@ export default function AdminPage() {
         {/* Contenido de la pestaña de registro de paquetes */}
         {activeTab === "registrar" && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Registrar nuevo paquete</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Registrar nuevo paquete</h2>
             <RegistroPaqueteForm />
           </div>
         )}
