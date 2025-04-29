@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ToastContainer } from 'react-toastify';
+import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -29,8 +31,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError("");
+    
+    // Mostrar toast de carga
+    const toastId = showLoadingToast("Iniciando sesión...");
 
     try {
       const response = await fetch("http://localhost:8000/api/auth/login", {
@@ -58,12 +62,16 @@ export default function LoginPage() {
       console.error("Error durante el login:", error);
       setError(error instanceof Error ? error.message : "Error desconocido");
     } finally {
-      setIsLoading(false);
+      // Ocultar toast de carga
+      hideLoadingToast(toastId);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-4">
+      {/* Container para las notificaciones toast */}
+      <ToastContainer position="top-right" autoClose={3000} />
+      
       <div className="w-full max-w-sm space-y-6">
         <h1 className="text-2xl font-bold text-gray-900 text-center">Inicio de sesión</h1>
 
@@ -113,10 +121,9 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full rounded-full bg-green-600 p-2 text-white font-semibold hover:bg-green-700 disabled:bg-green-400"
+            className="w-full rounded-full bg-green-600 p-2 text-white font-semibold hover:bg-green-700"
           >
-            {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+            Iniciar sesión
           </button>
 
           <button

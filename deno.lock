@@ -13,6 +13,7 @@
     "npm:next@15.2.3": "15.2.3_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:next@latest": "15.2.3_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
+    "npm:react-toastify@^11.0.5": "11.0.5_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:react@19": "19.0.0",
     "npm:tailwindcss@4": "4.0.15",
     "npm:typescript@5": "5.8.2"
@@ -692,6 +693,9 @@
     },
     "client-only@0.0.1": {
       "integrity": "sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA=="
+    },
+    "clsx@2.1.1": {
+      "integrity": "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="
     },
     "color-convert@2.0.1": {
       "integrity": "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==",
@@ -1863,6 +1867,14 @@
     "react-is@16.13.1": {
       "integrity": "sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ=="
     },
+    "react-toastify@11.0.5_react@19.0.0_react-dom@19.0.0__react@19.0.0": {
+      "integrity": "sha512-EpqHBGvnSTtHYhCPLxML05NLY2ZX0JURbAdNYa6BUkk+amz4wbKBQvoKQAB0ardvSarUBuY4Q4s1sluAzZwkmA==",
+      "dependencies": [
+        "clsx",
+        "react",
+        "react-dom"
+      ]
+    },
     "react@19.0.0": {
       "integrity": "sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ=="
     },
@@ -2517,6 +2529,7 @@
         "npm:eslint@9",
         "npm:next@15.2.3",
         "npm:react-dom@19",
+        "npm:react-toastify@^11.0.5",
         "npm:react@19",
         "npm:tailwindcss@4",
         "npm:typescript@5"

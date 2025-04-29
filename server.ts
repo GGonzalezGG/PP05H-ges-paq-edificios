@@ -14,6 +14,11 @@ import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
 import { enviarMensajeTemplate, enviarMensajeDetallado } from "./app/services/whatsappService.ts";
 
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Puerto para el servidor API
 const API_PORT = 8000;
 
@@ -469,6 +474,8 @@ if (url.pathname === "/api/webhook/whatsapp" && req.method === "GET") {
     try {
       console.log("Esperando datos");
       const body = await req.json();
+      console.log("sleep para ver el toast")
+      await sleep(2000);
       const { username, password } = body;
       console.log("Datos obtenidos:" + body);
       console.log("verificando si se entregaron ambas")

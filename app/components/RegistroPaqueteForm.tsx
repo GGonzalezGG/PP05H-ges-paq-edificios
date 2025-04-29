@@ -2,6 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ToastContainer } from 'react-toastify';
+import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface Usuario {
   id: number;
@@ -32,6 +35,8 @@ export default function RegistroPaqueteForm() {
 
   const buscarUsuariosPorDepartamento = async () => {
     setLoading(true);
+    const toastId = showLoadingToast("Buscando residentes...");
+    
     try {
       const token = localStorage.getItem("authToken");
       if (!token) {
@@ -80,6 +85,7 @@ export default function RegistroPaqueteForm() {
         texto: "Error de conexión al buscar usuarios"
       });
     } finally {
+      hideLoadingToast(toastId);
       setLoading(false);
     }
   };
@@ -105,6 +111,8 @@ export default function RegistroPaqueteForm() {
     }
 
     setLoading(true);
+    const toastId = showLoadingToast("Registrando paquete...");
+    
     try {
       const token = localStorage.getItem("authToken");
       if (!token) {
@@ -112,6 +120,7 @@ export default function RegistroPaqueteForm() {
           tipo: "error",
           texto: "No hay sesión activa, por favor inicie sesión nuevamente"
         });
+        hideLoadingToast(toastId);
         return;
       }
 
@@ -159,12 +168,14 @@ export default function RegistroPaqueteForm() {
         texto: "Error de conexión al registrar el paquete"
       });
     } finally {
+      hideLoadingToast(toastId);
       setLoading(false);
     }
   };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+      <ToastContainer />
       <h2 className="text-xl text-zinc-900 font-semibold mb-4">Registrar nuevo paquete</h2>
       
       {mensaje.texto && (

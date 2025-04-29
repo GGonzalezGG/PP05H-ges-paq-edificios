@@ -66,6 +66,8 @@ export default function AdminPage() {
   }, []);
 
   const fetchUsers = async () => {
+    const toastId = showLoadingToast("Cargando usuarios...");
+    
     try {
       const token = localStorage.getItem("authToken");
       
@@ -101,14 +103,14 @@ export default function AdminPage() {
       setUsers([]); // En caso de error, asignar array vacío
     } finally {
       setIsLoadingUsers(false);
+      hideLoadingToast(toastId);
     }
   };
 
   const fetchPaquetes = async () => {
+    const toastId = showLoadingToast("Cargando paquetes...");
+    
     try {
-
-
-
       const token = localStorage.getItem("authToken");
       
       if (!token) {
@@ -117,8 +119,6 @@ export default function AdminPage() {
       }
       
       console.log("Obteniendo paquetes...");
-
-
 
       const response = await fetch("http://localhost:8000/api/paquetes", {
         headers: {
@@ -144,13 +144,20 @@ export default function AdminPage() {
       setPaquetes([]);
     } finally {
       setIsLoadingPaquetes(false);
+      hideLoadingToast(toastId);
     }
   };
 
   const handleLogout = () => {
+    const toastId = showLoadingToast("Cerrando sesión...");
+    
     localStorage.removeItem("authToken");
     localStorage.removeItem("userData");
-    router.push("/login");
+    
+    setTimeout(() => {
+      hideLoadingToast(toastId);
+      router.push("/login");
+    }, 500);
   };
 
   // Función para formatear fechas
@@ -169,18 +176,21 @@ export default function AdminPage() {
 
   // Función para refrescar la lista de paquetes después de registrar uno nuevo
   const refreshPaquetes = () => {
-    showLoadingToast();
-
     fetchPaquetes();
+  };
 
-    hideLoadingToast();
+  const loadUsuarios = () => {
+    fetchUsers();
   };
 
   return (
     <RouteGuard adminOnly={true}>
       <div className="min-h-screen bg-slate-100 px-6 py-10">
+        {/* Contenedor para las notificaciones toast */}
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={true} />
+        
         <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-zinc-800 mb-1">Panel de Administrador</h1>
+          <h1 className="text-4xl font-bold text-zinc-800 mb-1">Panel de Administrador</h1>
           <div>
             <p className="text-gray-500 text-sm">
               Bienvenido/a, <span className="font-semibold">{userData?.nombre} {userData?.apellido}</span>
@@ -240,6 +250,14 @@ export default function AdminPage() {
         {activeTab === "usuarios" && (
           <div>
             <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Lista de usuarios</h2>
+            <div className="mb-4">
+              <button 
+                onClick={loadUsuarios}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
+              >
+                Actualizar lista
+              </button>
+            </div>
             {isLoadingUsers ? (
               <div className="flex justify-center py-10">
                 <p>Cargando usuarios...</p>
@@ -306,7 +324,7 @@ export default function AdminPage() {
 
         {/* Contenido de la pestaña de paquetes */}
         {activeTab === "paquetes" && (
-          <div >
+          <div>
             <h2 className="text-2xl font-semibold text-zinc-800">Lista de paquetes</h2>
             <div className="mb-4">
               <button 
@@ -315,7 +333,6 @@ export default function AdminPage() {
               >
                 Actualizar lista
               </button>
-              <ToastContainer position="top-right" autoClose={5000} hideProgressBar />
             </div>
             {isLoadingPaquetes ? (
               <div className="flex justify-center">
@@ -400,7 +417,7 @@ export default function AdminPage() {
         {activeTab === "registrar" && (
           <div>
             <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Registrar nuevo paquete</h2>
-            <RegistroPaqueteForm />
+            <RegistroPaqueteForm onSuccess={refreshPaquetes} />
           </div>
         )}
       </div>
