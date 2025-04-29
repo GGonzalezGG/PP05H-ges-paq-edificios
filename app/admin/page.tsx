@@ -107,7 +107,7 @@ export default function AdminPage() {
   const fetchPaquetes = async () => {
     try {
 
-      showLoadingToast();
+
 
       const token = localStorage.getItem("authToken");
       
@@ -118,7 +118,7 @@ export default function AdminPage() {
       
       console.log("Obteniendo paquetes...");
 
-      hideLoadingToast();
+
 
       const response = await fetch("http://localhost:8000/api/paquetes", {
         headers: {
