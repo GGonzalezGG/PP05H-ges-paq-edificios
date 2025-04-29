@@ -48,9 +48,9 @@ export async function enviarMensajeTemplate(
         to: telefonoFormateado,
         type: "template",
         template: {
-          name: "hello_world", // Nombre del template registrado en WhatsApp Business
+          name: "noti_paquete", // Nombre del template registrado en WhatsApp Business
           language: {
-            code: "en_US" // Código de idioma español
+            code: "es" // Código de idioma español
           }
           // No incluimos el array de components ya que no hay parámetros
         }
