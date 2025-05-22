@@ -7,6 +7,7 @@ import RouteGuard from "../components/RouteGuard";
 import RegistroPaqueteForm from "../components/RegistroPaqueteForm";
 import { ToastContainer } from 'react-toastify';
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
+import RegistroUsuarioForm from "../components/RegistroUsuarioForm";
 import 'react-toastify/dist/ReactToastify.css';
 
 
@@ -243,6 +244,18 @@ export default function AdminPage() {
                 Registrar paquete
               </button>
             </li>
+            <li className="mr-2">
+              <button
+                onClick={() => setActiveTab("registrar-usuario")}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                  activeTab === "registrar-usuario"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Registrar usuario
+              </button>
+            </li>
           </ul>
         </div>
 
@@ -418,6 +431,13 @@ export default function AdminPage() {
           <div>
             <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Registrar nuevo paquete</h2>
             <RegistroPaqueteForm onSuccess={refreshPaquetes} />
+          </div>
+        )}
+        {/* Contenido de la pestaña de registro de usuarios */}
+        {activeTab === "registrar-usuario" && (
+          <div>
+            <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Registrar nuevo usuario</h2>
+            <RegistroUsuarioForm onSuccess={loadUsuarios} />
           </div>
         )}
       </div>
