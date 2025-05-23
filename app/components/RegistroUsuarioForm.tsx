@@ -162,7 +162,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               name="username"
               value={formData.username}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
@@ -178,7 +178,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
               minLength={6}
             />
@@ -195,7 +195,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               name="nombre"
               value={formData.nombre}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
@@ -211,7 +211,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               name="apellido"
               value={formData.apellido}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
@@ -228,7 +228,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               value={formData.rut}
               onChange={handleChange}
               placeholder="12.345.678-9"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
@@ -244,7 +244,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               name="N_departamento"
               value={formData.N_departamento}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
@@ -260,7 +260,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               name="correo"
               value={formData.correo}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
@@ -276,7 +276,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
               name="telefono"
               value={formData.telefono}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full text-zinc-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
