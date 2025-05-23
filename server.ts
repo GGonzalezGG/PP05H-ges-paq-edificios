@@ -8,7 +8,8 @@ import {
   crearNotificacion,
   getAllPaquetes,
   getUsuarioContactInfo,
-  registrarEstadoNotificacionWhatsApp
+  registrarEstadoNotificacionWhatsApp,
+  createUser
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -579,6 +580,127 @@ if (url.pathname === "/api/webhook/whatsapp" && req.method === "GET") {
       });
     }
   }
+
+// Ruta para crear usuario
+if (url.pathname === "/api/users" && req.method === "POST") {
+  try {
+    // Verificar autenticación
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: "Token de autorización requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const isValidToken = await verifyToken(token);
+    
+    if (!isValidToken) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: "Token inválido o expirado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    // Obtener datos del cuerpo de la petición
+    const userData = await req.json();
+    
+    // Validaciones básicas
+    if (!userData.username || !userData.password || !userData.nombre || 
+        !userData.apellido || !userData.rut || !userData.correo || 
+        !userData.N_departamento) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: "Faltan campos requeridos"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userData.correo)) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: "Formato de correo electrónico inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Validar longitud de contraseña
+    if (userData.password.length < 6) {
+      return new Response(JSON.stringify({
+        success: false,
+        message: "La contraseña debe tener al menos 6 caracteres"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    console.log("Creando usuario:", userData.username);
+    
+    // Crear el usuario
+    const newUser = await createUser(userData);
+    
+    console.log("Usuario creado exitosamente:", newUser.id);
+
+    // No devolver la contraseña en la respuesta
+    const { password, ...userWithoutPassword } = newUser;
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Usuario creado exitosamente",
+      data: userWithoutPassword
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 201
+    });
+
+  } catch (error) {
+    console.error("Error al crear usuario:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      message: error instanceof Error ? error.message : "Error al crear usuario",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
   
   // Ruta no encontrada
   return new Response("Not Found", { 

@@ -1,9 +1,20 @@
 import { useState } from 'react';
-import { toast } from 'react-toastify';
 
 interface RegistroUsuarioFormProps {
   onSuccess: () => void;
 }
+
+// Simulamos react-toastify para el ejemplo
+const toast = {
+  success: (message: string) => {
+    console.log('SUCCESS:', message);
+    alert('Éxito: ' + message);
+  },
+  error: (message: string) => {
+    console.log('ERROR:', message);
+    alert('Error: ' + message);
+  }
+};
 
 export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormProps) {
   const [formData, setFormData] = useState({
@@ -38,12 +49,13 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("authToken");
+      // Simulamos el token para el ejemplo - en tu app real debería venir de localStorage
+      const token = "example-token-123";
       
       if (!token) {
         toast.error("No hay token de autorización");
@@ -99,15 +111,14 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
         body: JSON.stringify(dataToSend),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Error HTTP: ${response.status}`);
+        throw new Error(result.message || `Error HTTP: ${response.status}`);
       }
 
-      const result = await response.json();
       console.log("Usuario registrado:", result);
-
-      toast.success("Usuario registrado exitosamente");
+      toast.success(result.message || "Usuario registrado exitosamente");
       
       // Limpiar formulario
       setFormData({
@@ -135,8 +146,10 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Registro de Usuario</h2>
+      
+      <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Nombre de usuario */}
           <div>
@@ -300,11 +313,11 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
         </div>
 
         {/* Botón de envío */}
-        <div className="pt-4">
+        <div className="pt-6">
           <button
-            type="submit"
+            onClick={handleSubmit}
             disabled={loading}
-            className={`w-full md:w-auto px-6 py-2 rounded-md text-white font-medium transition ${
+            className={`w-full md:w-auto px-6 py-3 rounded-md text-white font-medium transition ${
               loading
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
@@ -313,7 +326,7 @@ export default function RegistroUsuarioForm({ onSuccess }: RegistroUsuarioFormPr
             {loading ? 'Registrando...' : 'Registrar usuario'}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
