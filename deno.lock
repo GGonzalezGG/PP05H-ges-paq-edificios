@@ -10,6 +10,7 @@
     "npm:cookies-next@^5.1.0": "5.1.0_next@15.2.3__react@19.0.0__react-dom@19.0.0___react@19.0.0_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:eslint-config-next@15.2.3": "15.2.3_eslint@9.23.0_typescript@5.8.2_@typescript-eslint+parser@8.27.0__eslint@9.23.0__typescript@5.8.2_eslint-plugin-import@2.31.0__eslint@9.23.0",
     "npm:eslint@9": "9.23.0",
+    "npm:lucide-react@0.511": "0.511.0_react@19.0.0",
     "npm:next@15.2.3": "15.2.3_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:next@latest": "15.2.3_react@19.0.0_react-dom@19.0.0__react@19.0.0",
     "npm:react-dom@19": "19.0.0_react@19.0.0",
@@ -1651,6 +1652,12 @@
         "js-tokens"
       ]
     },
+    "lucide-react@0.511.0_react@19.0.0": {
+      "integrity": "sha512-VK5a2ydJ7xm8GvBeKLS9mu1pVK6ucef9780JVUjw6bAjJL/QXnd4Y0p7SPeOUMC27YhzNCZvm5d/QX0Tp3rc0w==",
+      "dependencies": [
+        "react"
+      ]
+    },
     "math-intrinsics@1.1.0": {
       "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="
     },
@@ -2527,6 +2534,7 @@
         "npm:cookies-next@^5.1.0",
         "npm:eslint-config-next@15.2.3",
         "npm:eslint@9",
+        "npm:lucide-react@0.511",
         "npm:next@15.2.3",
         "npm:react-dom@19",
         "npm:react-toastify@^11.0.5",
