@@ -370,3 +370,73 @@ export function actualizarEstadoNotificacionWhatsApp(
     db.close();
   }
 }
+
+export function createUser(userData: {
+  username: string;
+  password: string;
+  N_departamento: string;
+  admin: number;
+  rut: string;
+  nombre: string;
+  apellido: string;
+  correo: string;
+  telefono: string;
+  retiro_compartido: number;
+}) {
+  const db = new DB(dbPath);
+  try {
+    // Verificar si el usuario ya existe (por username o rut)
+    const existingUser = db.query(
+      "SELECT ID_usuario FROM Usuarios WHERE username = ? OR rut = ?",
+      [userData.username, userData.rut]
+    );
+    
+    if (existingUser.length > 0) {
+      throw new Error("Ya existe un usuario con ese nombre de usuario o RUT");
+    }
+
+    // Insertar el nuevo usuario
+    const result = db.query(`
+      INSERT INTO Usuarios (
+        username, password, N_departamento, admin, rut, 
+        nombre, apellido, correo, telefono, reitro_compartido
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      userData.username,
+      userData.password,
+      userData.N_departamento,
+      userData.admin,
+      userData.rut,
+      userData.nombre,
+      userData.apellido,
+      userData.correo,
+      userData.telefono,
+      userData.retiro_compartido
+    ]);
+
+    // Obtener el ID del usuario recién creado
+    const newUserId = db.query("SELECT last_insert_rowid() as ID_usuario")[0][0];
+
+    // Retornar el usuario creado
+    const newUser = db.query("SELECT * FROM Usuarios WHERE ID_usuario = ?", [newUserId]);
+    
+    return {
+      id: newUser[0][0],
+      username: newUser[0][1],
+      password: newUser[0][2],
+      N_departamento: newUser[0][3],
+      admin: newUser[0][4],
+      rut: newUser[0][5],
+      nombre: newUser[0][6],
+      apellido: newUser[0][7],
+      correo: newUser[0][8],
+      telefono: newUser[0][9],
+      retiro_compartido: newUser[0][10]
+    };
+  } catch (error) {
+    console.error("Error al crear usuario:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}

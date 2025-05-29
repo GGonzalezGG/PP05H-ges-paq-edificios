@@ -1,7 +1,7 @@
 // app/components/RegistroPaqueteForm.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ToastContainer } from 'react-toastify';
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
 import 'react-toastify/dist/ReactToastify.css';
@@ -22,6 +22,24 @@ export default function RegistroPaqueteForm() {
   const [usuariosDepartamento, setUsuariosDepartamento] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: "", texto: "" });
+  
+  // Ref para almacenar el timeout del debounce
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Función debouncada para buscar usuarios
+  const debouncedBuscarUsuarios = useCallback((departamentoValue: string) => {
+    // Limpiar el timeout anterior si existe
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Establecer un nuevo timeout
+    debounceRef.current = setTimeout(() => {
+      if (departamentoValue.trim()) {
+        buscarUsuariosPorDepartamento(departamentoValue);
+      }
+    }, 500); // Debounce de 500ms
+  }, []);
 
   useEffect(() => {
     // Limpiar la selección de usuario cuando cambia el departamento
@@ -29,11 +47,23 @@ export default function RegistroPaqueteForm() {
     setUsuariosDepartamento([]);
     
     if (departamento.trim()) {
-      buscarUsuariosPorDepartamento();
+      debouncedBuscarUsuarios(departamento);
+    } else {
+      // Si el departamento está vacío, limpiar el timeout
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     }
-  }, [departamento]);
 
-  const buscarUsuariosPorDepartamento = async () => {
+    // Cleanup function para limpiar el timeout cuando el componente se desmonte
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [departamento, debouncedBuscarUsuarios]);
+
+  const buscarUsuariosPorDepartamento = async (departamentoParam: string) => {
     setLoading(true);
     const toastId = showLoadingToast("Buscando residentes...");
     
@@ -48,7 +78,7 @@ export default function RegistroPaqueteForm() {
       }
 
       const response = await fetch(
-        `http://localhost:8000/api/users/departamento?departamento=${encodeURIComponent(departamento)}`,
+        `http://localhost:8000/api/users/departamento?departamento=${encodeURIComponent(departamentoParam)}`,
         {
           headers: {
             Authorization: `Bearer ${token}`

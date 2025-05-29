@@ -7,7 +7,9 @@ import RouteGuard from "../components/RouteGuard";
 import RegistroPaqueteForm from "../components/RegistroPaqueteForm";
 import { ToastContainer } from 'react-toastify';
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
+import RegistroUsuarioForm from "../components/RegistroUsuarioForm";
 import 'react-toastify/dist/ReactToastify.css';
+import ReclamosPanel from "../components/ReclamosPanel";
 
 
 interface Usuario {
@@ -243,6 +245,30 @@ export default function AdminPage() {
                 Registrar paquete
               </button>
             </li>
+            <li className="mr-2">
+              <button
+                onClick={() => setActiveTab("registrar-usuario")}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                  activeTab === "registrar-usuario"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Registrar usuario
+              </button>
+            </li>
+            <li className="mr-2">
+              <button
+                onClick={() => setActiveTab("reclamos")}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                  activeTab === "reclamos"
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Reclamos
+              </button>
+            </li>
           </ul>
         </div>
 
@@ -420,6 +446,21 @@ export default function AdminPage() {
             <RegistroPaqueteForm onSuccess={refreshPaquetes} />
           </div>
         )}
+        {/* Contenido de la pestaña de registro de usuarios */}
+        {activeTab === "registrar-usuario" && (
+          <div>
+            <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Registrar nuevo usuario</h2>
+            <RegistroUsuarioForm onSuccess={loadUsuarios} />
+          </div>
+        )}
+        {/* Contenido de la pestaña de reclamos */}
+          {activeTab === "reclamos" && (
+          <div>
+            <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Reclamos recibidos</h2>
+            <ReclamosPanel />
+          </div>
+        )}
+
       </div>
     </RouteGuard>
   );
