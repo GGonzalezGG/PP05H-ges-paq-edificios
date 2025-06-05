@@ -266,7 +266,7 @@ export function getUsuarioContactInfo(idUsuario: number) {
   const db = new DB(dbPath);
   try {
     const query = `
-      SELECT nombre, apellido, telefono
+      SELECT nombre, apellido, telefono, correo
       FROM Usuarios
       WHERE ID_usuario = ?
     `;
@@ -286,7 +286,8 @@ export function getUsuarioContactInfo(idUsuario: number) {
       data: {
         nombre: userData[0][0] as string,
         apellido: userData[0][1] as string,
-        telefono: userData[0][2] as string
+        telefono: userData[0][2] as string,
+        correo: userData[0][3] as string
       }
     };
   } catch (error) {

@@ -4,6 +4,7 @@ import { sendEmail } from "@app/utils/sendEmail";
 export async function GET() {
   try {
     await sendEmail({
+      from: "onboarding@resend.dev",
       to: "xkiritox1995@gmail.com", // Change to your test email
       subject: "📦 Package Notification Test",
       html: `

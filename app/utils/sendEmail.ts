@@ -2,12 +2,13 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 interface EmailData {
+  from: string;
   to: string;
   subject: string;
   html: string;
 }
 
-export async function sendEmail({ to, subject, html }: EmailData) {
+export async function sendEmail({from, to, subject, html }: EmailData) {
   const response = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: {
@@ -15,7 +16,7 @@ export async function sendEmail({ to, subject, html }: EmailData) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "YourApp <onboarding@resend.dev>", // Default sandbox sender for tests
+      from, // Default sandbox sender for tests
       to,
       subject,
       html,
