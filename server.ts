@@ -219,23 +219,22 @@ async function handler(req: Request): Promise<Response> {
         whatsappStatus = "sin_telefono";
         whatsappMessage = "El usuario no tiene número de teléfono registrado";
       }
-
+      
       if (contactoUsuario.success && contactoUsuario.data.correo) {
         try {
           console.log("Llamando a sendEmail con:", contactoUsuario.data.correo);
           const nombreCompleto = `${contactoUsuario.data.nombre} ${contactoUsuario.data.apellido}`;
           // Enviar mensaje template
-          const envioExitoso = await sendEmail({
-      from: "onboarding@resend.dev",
-      to: "xkiritox1995@gmail.com", // Change to your test email
-      subject: "📦 Package Notification Test",
-      html: `
-        <h2>Tu paquete ha llegado</h2>
-        <p>Hola, hemos recibido tu paquete y se encuentra en conserjeria</p>
-        <p><strong>Status:</strong> Delivered</p>
-      `,
-    })
-      
+          await sendEmail({
+            from: "onboarding@resend.dev",
+            to: "xkiritox1995@gmail.com", // Change to your test email
+            subject: "📦 Package Notification Test",
+            html: `
+              <h2>Tu paquete ha llegado</h2>
+              <p>Hola, hemos recibido tu paquete y se encuentra en conserjeria</p>
+              <p><strong>Status:</strong> Delivered</p>
+            `,
+      })}catch(error){}}
       return new Response(JSON.stringify({
         success: true,
         message: "Paquete y notificación registrados correctamente",
