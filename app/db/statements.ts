@@ -440,3 +440,132 @@ export function createUser(userData: {
     db.close();
   }
 }
+
+// Función para obtener paquetes de un residente específico
+export function getResidentPackages(residentId: number) {
+  console.log("getResidentPackages llamada con ID:", residentId);
+  const db = new DB(dbPath);
+  try {
+    // Primero obtenemos la información del residente actual
+    const residentQuery = "SELECT N_departamento, reitro_compartido FROM Usuarios WHERE ID_usuario = ?";
+    const residentRows = db.query(residentQuery, [residentId]);
+    
+    if (residentRows.length === 0) {
+      return { success: false, error: "Residente no encontrado" };
+    }
+    
+    const residentInfo = {
+      departamento: residentRows[0][0],
+      retiro_compartido: residentRows[0][1] === 1
+    };
+
+    // Query compleja para obtener paquetes según las reglas de negocio
+    const packagesQuery = `
+      SELECT DISTINCT
+        p.ID_pack,
+        p.ID_userDestinatario,
+        p.ID_userRetirador,
+        p.fecha_entrega,
+        p.fecha_limite,
+        p.fecha_retiro,
+        p.ubicacion,
+        -- Información del destinatario
+        u_dest.ID_usuario as dest_id,
+        u_dest.nombre as dest_nombre,
+        u_dest.apellido as dest_apellido,
+        u_dest.N_departamento as dest_departamento,
+        u_dest.reitro_compartido as dest_retiro_compartido,
+        -- Información del retirador (si existe)
+        u_ret.ID_usuario as ret_id,
+        u_ret.nombre as ret_nombre,
+        u_ret.apellido as ret_apellido,
+        u_ret.N_departamento as ret_departamento,
+        u_ret.reitro_compartido as ret_retiro_compartido,
+        -- Información de la notificación
+        n.ID_notificacion,
+        n.mensaje,
+        n.fecha_envio,
+        n.leido
+      FROM Paquetes p
+      INNER JOIN Usuarios u_dest ON p.ID_userDestinatario = u_dest.ID_usuario
+      LEFT JOIN Usuarios u_ret ON p.ID_userRetirador = u_ret.ID_usuario
+      LEFT JOIN Notificaciones n ON p.ID_pack = n.ID_pack
+      WHERE 
+        -- Caso 1: Paquetes no retirados
+        (p.fecha_retiro IS NULL AND (
+          -- El residente es el destinatario
+          p.ID_userDestinatario = ? OR
+          -- O el destinatario es del mismo departamento Y tiene retiro_compartido activo
+          (u_dest.N_departamento = ? AND u_dest.reitro_compartido = 1)
+        ))
+        OR
+        -- Caso 2: Paquetes ya retirados
+        (p.fecha_retiro IS NOT NULL AND (
+          -- El residente es el destinatario
+          p.ID_userDestinatario = ? OR
+          -- O el residente hizo el retiro
+          p.ID_userRetirador = ?
+        ))
+      ORDER BY 
+        CASE WHEN p.fecha_retiro IS NULL THEN 0 ELSE 1 END,
+        p.fecha_entrega DESC
+    `;
+
+    const rows = db.query(packagesQuery, [
+      residentId, // Para paquetes no retirados - destinatario
+      residentInfo.departamento, // Para paquetes no retirados - mismo departamento
+      residentId, // Para paquetes retirados - destinatario
+      residentId  // Para paquetes retirados - retirador
+    ]);
+
+    // Convertir resultados a objetos
+    const packages = Array.from(rows, (row) => ({
+      paquete: {
+        ID_pack: row[0],
+        ID_userDestinatario: row[1],
+        ID_userRetirador: row[2] || undefined,
+        fecha_entrega: row[3],
+        fecha_limite: row[4] || undefined,
+        fecha_retiro: row[5] || undefined,
+        ubicacion: row[6]
+      },
+      destinatario: {
+        ID_usuario: row[7],
+        nombre: row[8],
+        apellido: row[9],
+        N_departamento: row[10],
+        retiro_compartido: row[11] === 1
+      },
+      retirador: row[12] ? {
+        ID_usuario: row[12],
+        nombre: row[13],
+        apellido: row[14],
+        N_departamento: row[15],
+        retiro_compartido: row[16] === 1
+      } : undefined,
+      notificacion: row[17] ? {
+        ID_notificacion: row[17],
+        ID_pack: row[0],
+        mensaje: row[18],
+        fecha_envio: row[19],
+        leido: row[20] === 1
+      } : undefined
+    }));
+
+    console.log(`Encontrados ${packages.length} paquetes para el residente ${residentId}`);
+    
+    return {
+      success: true,
+      packages: packages
+    };
+
+  } catch (error) {
+    console.error("Error al obtener paquetes del residente:", error.message);
+    return {
+      success: false,
+      error: "Error al obtener paquetes"
+    };
+  } finally {
+    db.close();
+  }
+}

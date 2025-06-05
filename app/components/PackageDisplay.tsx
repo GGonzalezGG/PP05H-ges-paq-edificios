@@ -1,3 +1,4 @@
+//app/components/PackageDisplay.tsx
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Package, MapPin, Calendar, User, AlertTriangle } from 'lucide-react';
 

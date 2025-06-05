@@ -1,7 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { PackageData } from '../components/PackageDisplay';
+import { useRouter } from "next/navigation";
+import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
+
 
 // Importación dinámica del componente PackageDisplay sin SSR
 const PackageDisplay = dynamic(
@@ -12,124 +16,60 @@ const PackageDisplay = dynamic(
   }
 );
 
-
 const ResidentePage = () => {
-  // Datos de prueba - incluye paquetes retirados y pendientes
-  const testPackageData: PackageData[] = [
-    // Paquete retirado (el que proporcionaste)
-    {
-      paquete: {
-        ID_pack: 124,
-        ID_userDestinatario: 2,
-        ID_userRetirador: 3,
-        fecha_entrega: '2024-03-10T14:20:00Z',
-        fecha_retiro: '2024-03-12T16:45:00Z',
-        ubicacion: 'Casilleros Planta Baja'
-      },
-      destinatario: {
-        ID_usuario: 2,
-        nombre: 'María',
-        apellido: 'González',
-        N_departamento: '2A',
-        retiro_compartido: true
-      },
-      retirador: {
-        ID_usuario: 3,
-        nombre: 'Carlos',
-        apellido: 'González',
-        N_departamento: '2A',
-        retiro_compartido: true
-      },
-      notificacion: {
-        ID_notificacion: 2,
-        ID_pack: 124,
-        mensaje: 'Paquete de MercadoLibre con ropa y accesorios.',
-        fecha_envio: '2024-03-10T14:20:00Z',
-        leido: true
-      }
-    },
-    // Paquete pendiente 1
-    {
-      paquete: {
-        ID_pack: 125,
-        ID_userDestinatario: 1,
-        fecha_entrega: '2024-03-15T09:30:00Z',
-        fecha_limite: '2024-03-22T18:00:00Z',
-        ubicacion: 'Recepción Principal'
-      },
-      destinatario: {
-        ID_usuario: 1,
-        nombre: 'Ana',
-        apellido: 'Martínez',
-        N_departamento: '1B',
-        retiro_compartido: false
-      },
-      notificacion: {
-        ID_notificacion: 3,
-        ID_pack: 125,
-        mensaje: 'Paquete de Amazon con libros y material de oficina. Favor retirar antes del viernes.',
-        fecha_envio: '2024-03-15T09:30:00Z',
-        leido: false
-      }
-    },
-    // Paquete pendiente 2
-    {
-      paquete: {
-        ID_pack: 126,
-        ID_userDestinatario: 4,
-        fecha_entrega: '2024-03-16T11:15:00Z',
-        ubicacion: 'Casilleros Segundo Piso'
-      },
-      destinatario: {
-        ID_usuario: 4,
-        nombre: 'Roberto',
-        apellido: 'Silva',
-        N_departamento: '3C',
-        retiro_compartido: true
-      },
-      notificacion: {
-        ID_notificacion: 4,
-        ID_pack: 126,
-        mensaje: 'Sobre certificado de Correos de Chile.',
-        fecha_envio: '2024-03-16T11:15:00Z',
-        leido: true
-      }
-    },
-    // Paquete retirado 2
-    {
-      paquete: {
-        ID_pack: 123,
-        ID_userDestinatario: 5,
-        ID_userRetirador: 5,
-        fecha_entrega: '2024-03-08T16:00:00Z',
-        fecha_retiro: '2024-03-09T10:30:00Z',
-        ubicacion: 'Recepción Principal'
-      },
-      destinatario: {
-        ID_usuario: 5,
-        nombre: 'Laura',
-        apellido: 'Rodríguez',
-        N_departamento: '4A',
-        retiro_compartido: false
-      },
-      retirador: {
-        ID_usuario: 5,
-        nombre: 'Laura',
-        apellido: 'Rodríguez',
-        N_departamento: '4A',
-        retiro_compartido: false
-      },
-      notificacion: {
-        ID_notificacion: 1,
-        ID_pack: 123,
-        mensaje: 'Paquete de Falabella con productos de belleza y cuidado personal.',
-        fecha_envio: '2024-03-08T16:00:00Z',
-        leido: true
-      }
-    }
-  ];
+  const [packageData, setPackageData] = useState<PackageData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  // Handlers para las acciones
+  // Función para obtener paquetes desde la API
+  const fetchPackages = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Obtener token del localStorage
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('No hay sesión activa. Por favor, inicia sesión.');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/resident/packages', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setPackageData(result.data.packages);
+      } else {
+        setError(result.error || 'Error al cargar los paquetes');
+        
+        // Si el token es inválido, redirigir al login
+        if (response.status === 401) {
+          localStorage.removeItem('authToken');
+          window.location.href = '/login';
+        }
+      }
+    } catch (err) {
+      console.error('Error al obtener paquetes:', err);
+      setError('Error de conexión. Por favor, intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar paquetes al montar el componente
+  useEffect(() => {
+    fetchPackages();
+  }, []);
+
+  // Handlers para las acciones (placeholder por ahora)
   const handleRetirePackage = (packageId: number) => {
     console.log(`Intentando retirar paquete ID: ${packageId}`);
     alert(`Funcionalidad de retiro para paquete ${packageId} - Aquí implementarías la lógica de retiro`);
@@ -141,8 +81,77 @@ const ResidentePage = () => {
   };
 
   // Separar paquetes por estado
-  const pendingPackages = testPackageData.filter(pkg => !pkg.paquete.fecha_retiro);
-  const pickedUpPackages = testPackageData.filter(pkg => pkg.paquete.fecha_retiro);
+  const pendingPackages = packageData.filter(pkg => !pkg.paquete.fecha_retiro);
+  const pickedUpPackages = packageData.filter(pkg => pkg.paquete.fecha_retiro);
+
+  // Mostrar loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <h1 className="text-3xl font-bold text-gray-900">Portal del Residente</h1>
+            <p className="mt-2 text-gray-600">Gestiona tus paquetes y encomiendas</p>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Cargando paquetes...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <h1 className="text-3xl font-bold text-gray-900">Portal del Residente</h1>
+            <p className="mt-2 text-gray-600">Gestiona tus paquetes y encomiendas</p>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-5 h-5 bg-red-400 rounded-full"></div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error al cargar paquetes</h3>
+                <p className="mt-1 text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={fetchPackages}
+                className="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Intentar nuevamente
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+    const handleLogout = () => {
+      const toastId = showLoadingToast("Cerrando sesión...");
+      
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userData");
+      
+      setTimeout(() => {
+        hideLoadingToast(toastId);
+        router.push("/login");
+      }, 500);
+    };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -155,6 +164,12 @@ const ResidentePage = () => {
           <p className="mt-2 text-gray-600">
             Gestiona tus paquetes y encomiendas
           </p>
+          <button
+              onClick={handleLogout}
+              className="bg-red-500 hover:bg-red-600 text-white text-sm px-5 py-1 rounded-md shadow-md transition"
+            >
+              Cerrar sesión
+            </button>
         </div>
       </div>
 
@@ -193,55 +208,65 @@ const ResidentePage = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total de Paquetes</p>
-                <p className="text-2xl font-bold text-gray-900">{testPackageData.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{packageData.length}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Pending Packages Section */}
-        {/* Pending Packages Section */}
-      {pendingPackages.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-            Paquetes Pendientes ({pendingPackages.length})
-          </h2>
-          <div className="space-y-4">
-            {pendingPackages.map((packageData) => (
-              <PackageDisplay
-                key={packageData.paquete.ID_pack}
-                packageData={packageData}
-                isPickedUp={false}
-                onRetireClick={handleRetirePackage}
-                onComplaintClick={handleComplaint}
-              />
-            ))}
-          </div>
+        {/* Refresh Button */}
+        <div className="mb-6">
+          <button
+            onClick={fetchPackages}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+          >
+            {loading ? 'Actualizando...' : 'Actualizar Paquetes'}
+          </button>
         </div>
-      )}
+
+        {/* Pending Packages Section */}
+        {pendingPackages.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+              Paquetes Pendientes ({pendingPackages.length})
+            </h2>
+            <div className="space-y-4">
+              {pendingPackages.map((packageData) => (
+                <PackageDisplay
+                  key={packageData.paquete.ID_pack}
+                  packageData={packageData}
+                  isPickedUp={false}
+                  onRetireClick={handleRetirePackage}
+                  onComplaintClick={handleComplaint}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Picked Up Packages Section */}
         {pickedUpPackages.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-            Paquetes Retirados ({pickedUpPackages.length})
-          </h2>
-          <div className="space-y-4">
-            {pickedUpPackages.map((packageData) => (
-              <PackageDisplay
-                key={packageData.paquete.ID_pack}
-                packageData={packageData}
-                isPickedUp={true}
-                onRetireClick={handleRetirePackage}
-                onComplaintClick={handleComplaint}
-              />
-            ))}
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+              Paquetes Retirados ({pickedUpPackages.length})
+            </h2>
+            <div className="space-y-4">
+              {pickedUpPackages.map((packageData) => (
+                <PackageDisplay
+                  key={packageData.paquete.ID_pack}
+                  packageData={packageData}
+                  isPickedUp={true}
+                  onRetireClick={handleRetirePackage}
+                  onComplaintClick={handleComplaint}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* Empty State */}
-        {testPackageData.length === 0 && (
+        {packageData.length === 0 && !loading && !error && (
           <div className="text-center py-12">
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <div className="w-12 h-12 bg-gray-300 rounded"></div>
@@ -254,18 +279,6 @@ const ResidentePage = () => {
             </p>
           </div>
         )}
-      </div>
-
-      {/* Debug Info (solo para desarrollo) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="bg-gray-100 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Debug Info:</h3>
-          <p className="text-xs text-gray-600">
-            Total de paquetes de prueba: {testPackageData.length} | 
-            Pendientes: {pendingPackages.length} | 
-            Retirados: {pickedUpPackages.length}
-          </p>
-        </div>
       </div>
     </div>
   );

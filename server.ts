@@ -9,7 +9,8 @@ import {
   getAllPaquetes,
   getUsuarioContactInfo,
   registrarEstadoNotificacionWhatsApp,
-  createUser
+  createUser,
+  getResidentPackages
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -581,6 +582,109 @@ if (url.pathname === "/api/webhook/whatsapp" && req.method === "GET") {
     }
   }
 
+if (url.pathname === "/api/resident/packages" && req.method === "GET") {
+  try {
+    // Verificar el token de autorización
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token de autorización requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const tokenResult = verifyToken(token);
+    
+    // Manejar la respuesta de verifyToken correctamente
+    let userId;
+    if (typeof tokenResult === 'object' && tokenResult !== null) {
+      // Si verifyToken devuelve un objeto { valid: boolean, userId?: number }
+      if (!tokenResult.valid || !tokenResult.userId) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Token inválido o expirado"
+        }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          },
+          status: 401
+        });
+      }
+      userId = tokenResult.userId;
+    } else {
+      // Si verifyToken devuelve directamente el userId o null/undefined
+      if (!tokenResult) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Token inválido o expirado"
+        }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          },
+          status: 401
+        });
+      }
+      userId = tokenResult;
+    }
+
+    console.log(`=== USUARIO AUTENTICADO ===`);
+    console.log(`User ID: ${userId}`);
+    console.log(`=== FIN AUTH ===`);
+
+    // Obtener paquetes del residente
+    const result = getResidentPackages(userId);
+    
+    if (result.success) {
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          packages: result.packages
+        }
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 200
+      });
+    } else {
+      return new Response(JSON.stringify({
+        success: false,
+        error: result.error
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+  } catch (error) {
+    console.error("Error al obtener paquetes del residente:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al procesar la solicitud",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
 // Ruta para crear usuario
 if (url.pathname === "/api/users" && req.method === "POST") {
   try {
