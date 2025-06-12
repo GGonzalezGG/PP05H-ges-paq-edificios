@@ -86,6 +86,19 @@ export function authenticateUser(username: string, password: string) {
   }
 }
 
+export function deleteUser(id: string) {
+  const db = new DB(dbPath);
+  try {
+    const result = db.query("DELETE FROM Usuarios WHERE id = ?", [id]);
+    return true; // si no hay error, se asume éxito
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error.message);
+    return false;
+  } finally {
+    db.close();
+  }
+}
+
 // Nueva función para obtener usuarios por departamento
 export function getUsersByDepartamento(departamento: string) {
   const db = new DB(dbPath);

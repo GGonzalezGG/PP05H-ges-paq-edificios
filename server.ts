@@ -15,6 +15,7 @@ import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
 import { enviarMensajeTemplate, enviarMensajeDetallado } from "./app/services/whatsappService.ts";
 import { sendEmail } from "./app/utils/sendEmail.ts";
+import { deleteUser } from "./app/db/statements.ts";
 
 
 async function sleep(ms: number): Promise<void> {
@@ -69,7 +70,33 @@ async function handler(req: Request): Promise<Response> {
       });
     }
   }
-  
+// Ruta para eliminar un usuario
+if (url.pathname.startsWith("/api/users/") && req.method === "DELETE") {
+  try {
+    const userId = url.pathname.split("/").pop(); // obtiene el ID
+    if (!userId) throw new Error("ID de usuario no proporcionado");
+
+    const deleted = await deleteUser(userId);
+
+    if (deleted) {
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 200,
+      });
+    } else {
+      return new Response(JSON.stringify({ success: false, error: "Usuario no encontrado" }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 404,
+      });
+    }
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+      status: 500,
+    });
+  }
+}
   // NUEVO ENDPOINT: Obtener usuarios por departamento
   if (url.pathname === "/api/users/departamento" && req.method === "GET") {
     try {

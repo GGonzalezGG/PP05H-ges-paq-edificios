@@ -47,6 +47,8 @@ export default function AdminPage() {
   const [isLoadingPaquetes, setIsLoadingPaquetes] = useState(true);
   const [activeTab, setActiveTab] = useState("usuarios");
   const router = useRouter();
+  const [editingUser, setEditingUser] = useState(null);
+
 
   useEffect(() => {
     // Cargar datos del usuario desde localStorage
@@ -185,6 +187,28 @@ export default function AdminPage() {
     fetchUsers();
   };
 
+  const handleDelete = async (id: string) => {
+  const confirmDelete = confirm("¿Estás seguro de que deseas eliminar este usuario?");
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch(`/api/users/${id}`, {
+      method: "DELETE"
+    });
+
+    if (res.ok) {
+      alert("Usuario eliminado correctamente");
+      loadUsuarios();
+    } else {
+      const data = await res.json();
+      alert("Error al eliminar: " + data?.error || "Error desconocido");
+    }
+  } catch (error) {
+    alert("Error de red o servidor");
+    console.error("Error al eliminar usuario:", error);
+  }
+};
+
   return (
     <RouteGuard adminOnly={true}>
       <div className="min-h-screen bg-slate-100 px-6 py-10">
@@ -294,45 +318,30 @@ export default function AdminPage() {
                   <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Usuario
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Nombre completo
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Departamento
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          RUT
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Contacto
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Rol
-                        </th>
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">Usuario</th>
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">Nombre completo</th>
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">Departamento</th>
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">RUT</th>
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">Contacto</th>
+                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">Rol</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {users.map((user) => (
                         <tr key={user.id}>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {user.username}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {user.nombre} {user.apellido}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {user.N_departamento}
-                          </td>
+                          <td className="whitespace-nowrap px-6 py-4">{user.username}</td>
+                          <td className="whitespace-nowrap px-6 py-4">{user.nombre} {user.apellido}</td>
+                          <td className="whitespace-nowrap px-6 py-4">{user.N_departamento}</td>
                           <td className="whitespace-nowrap px-6 py-4">{user.rut}</td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {user.correo}<br />
-                            {user.telefono}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {user.admin ? "Administrador" : "Residente"}
+                          <td className="whitespace-nowrap px-6 py-4">{user.correo}<br />{user.telefono}</td>
+                          <td className="whitespace-nowrap px-6 py-4">{user.admin ? "Administrador" : "Residente"}</td>
+                          <td>
+                            <button
+                              onClick={() => handleDelete(String(user.id))}
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition"
+                            >
+                              Eliminar
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -347,6 +356,7 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
 
         {/* Contenido de la pestaña de paquetes */}
         {activeTab === "paquetes" && (
