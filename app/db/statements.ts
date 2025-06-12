@@ -569,3 +569,73 @@ export function getResidentPackages(residentId: number) {
     db.close();
   }
 }
+
+// Función para obtener paquetes que están próximos a vencer
+export function getPaquetesPorVencer(diasAntes: number = 3) {
+  const db = new DB(dbPath);
+  try {
+    // Calcular la fecha límite para la búsqueda
+    const fechaLimite = new Date();
+    fechaLimite.setDate(fechaLimite.getDate() + diasAntes);
+    const fechaLimiteStr = fechaLimite.toISOString().split('T')[0]; // Solo la parte de fecha YYYY-MM-DD
+    
+    console.log(`Buscando paquetes que vencen hasta: ${fechaLimiteStr}`);
+    
+    const query = `
+      SELECT DISTINCT
+        p.ID_pack,
+        p.ID_userDestinatario,
+        p.fecha_entrega,
+        p.fecha_limite,
+        p.ubicacion,
+        -- Información del destinatario
+        u.nombre as nombre_destinatario,
+        u.apellido as apellido_destinatario,
+        u.N_departamento,
+        u.telefono,
+        -- Verificar si ya se envió notificación de vencimiento
+        CASE WHEN nw.estado = 'notificacion_vencimiento_enviada' THEN 1 ELSE 0 END as notificacion_vencimiento_enviada
+      FROM Paquetes p
+      INNER JOIN Usuarios u ON p.ID_userDestinatario = u.ID_usuario
+      LEFT JOIN NotificacionesWhatsApp nw ON p.ID_pack = nw.ID_paquete 
+        AND nw.estado = 'notificacion_vencimiento_enviada'
+      WHERE 
+        -- Solo paquetes no retirados
+        p.fecha_retiro IS NULL
+        -- Que tengan fecha límite establecida
+        AND p.fecha_limite IS NOT NULL
+        AND p.fecha_limite != ''
+        -- Que la fecha límite sea dentro de los próximos N días
+        AND DATE(p.fecha_limite) <= DATE(?)
+        -- Que la fecha límite no haya pasado ya (opcional, depende de tu lógica)
+        AND DATE(p.fecha_limite) >= DATE('now')
+        -- No se ha enviado notificación de vencimiento aún
+        AND nw.ID_notificacion IS NULL
+      ORDER BY p.fecha_limite ASC
+    `;
+    
+    const rows = db.query(query, [fechaLimiteStr]);
+    
+    const paquetes = Array.from(rows, (row) => ({
+      ID_pack: row[0],
+      ID_userDestinatario: row[1],
+      fecha_entrega: row[2],
+      fecha_limite: row[3],
+      ubicacion: row[4],
+      nombre_destinatario: row[5],
+      apellido_destinatario: row[6],
+      N_departamento: row[7],
+      telefono: row[8],
+      notificacion_vencimiento_enviada: row[9] === 1
+    }));
+    
+    console.log(`Encontrados ${paquetes.length} paquetes próximos a vencer`);
+    
+    return paquetes;
+  } catch (error) {
+    console.error("Error al obtener paquetes por vencer:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}

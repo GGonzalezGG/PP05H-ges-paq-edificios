@@ -10,7 +10,8 @@ import {
   getUsuarioContactInfo,
   registrarEstadoNotificacionWhatsApp,
   createUser,
-  getResidentPackages
+  getResidentPackages,
+  getPaquetesPorVencer
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -19,6 +20,103 @@ import { enviarMensajeTemplate, enviarMensajeDetallado } from "./app/services/wh
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Nueva función para revisar paquetes próximos a vencer
+async function revisarPaquetesPorVencer(): Promise<void> {
+  console.log("🔍 Iniciando revisión de paquetes próximos a vencer...");
+  
+  try {
+    // Obtener paquetes que vencen en 3 días
+    const paquetesPorVencer = await getPaquetesPorVencer(3);
+    
+    if (paquetesPorVencer.length === 0) {
+      console.log("✅ No hay paquetes próximos a vencer");
+      return;
+    }
+    
+    console.log(`📦 Encontrados ${paquetesPorVencer.length} paquetes próximos a vencer`);
+    
+    for (const paquete of paquetesPorVencer) {
+      try {
+        console.log(`📱 Procesando paquete ID: ${paquete.ID_pack} para ${paquete.nombre_destinatario}`);
+        
+        // Verificar si ya se envió notificación de vencimiento para este paquete
+        // (esto evita spam diario)
+        if (paquete.notificacion_vencimiento_enviada) {
+          console.log(`⚠️ Ya se envió notificación de vencimiento para paquete ${paquete.ID_pack}`);
+          continue;
+        }
+        
+        // Obtener información de contacto del destinatario
+        const contactoUsuario = await getUsuarioContactInfo(paquete.ID_userDestinatario);
+        
+        if (!contactoUsuario.success || !contactoUsuario.data.telefono) {
+          console.log(`❌ No se pudo obtener teléfono para usuario ${paquete.ID_userDestinatario}`);
+          continue;
+        }
+        
+        // Enviar notificación por WhatsApp
+        console.log(`📲 Enviando notificación de vencimiento a ${contactoUsuario.data.telefono}`);
+        
+        const envioExitoso = await enviarMensajeTemplate(contactoUsuario.data.telefono);
+        
+        if (envioExitoso) {
+          // Registrar que se envió la notificación de vencimiento
+          await registrarEstadoNotificacionWhatsApp(
+            paquete.ID_pack,
+            paquete.ID_userDestinatario,
+            "notificacion_vencimiento_enviada"
+          );
+          
+          console.log(`✅ Notificación de vencimiento enviada para paquete ${paquete.ID_pack}`);
+        } else {
+          console.log(`❌ Error al enviar notificación de vencimiento para paquete ${paquete.ID_pack}`);
+          
+          await registrarEstadoNotificacionWhatsApp(
+            paquete.ID_pack,
+            paquete.ID_userDestinatario,
+            "error_notificacion_vencimiento"
+          );
+        }
+        
+        // Pequeña pausa entre envíos para no saturar la API
+        await sleep(1000);
+        
+      } catch (error) {
+        console.error(`❌ Error procesando paquete ${paquete.ID_pack}:`, error);
+      }
+    }
+    
+    console.log("✅ Revisión de paquetes próximos a vencer completada");
+    
+  } catch (error) {
+    console.error("❌ Error en revisión de paquetes por vencer:", error);
+  }
+}
+
+// Función para iniciar el cron job de notificaciones
+function iniciarRevisionPeriodica(): void {
+  console.log("⏰ Iniciando sistema de revisión periódica de paquetes...");
+  
+  // Ejecutar inmediatamente al iniciar
+  revisarPaquetesPorVencer();
+  
+  // Ejecutar cada 24 horas (86400000 ms)
+  setInterval(() => {
+    const ahora = new Date();
+    console.log(`⏰ Ejecutando revisión programada - ${ahora.toLocaleString('es-ES')}`);
+    revisarPaquetesPorVencer();
+  }, 24 * 60 * 60 * 1000);
+  
+  // También ejecutar cada 6 horas para mayor frecuencia
+  // setInterval(() => {
+  //   const ahora = new Date();
+  //   console.log(`⏰ Ejecutando revisión (6h) - ${ahora.toLocaleString('es-ES')}`);
+  //   revisarPaquetesPorVencer();
+  // }, 6 * 60 * 60 * 1000);
+  
+  console.log("✅ Sistema de revisión periódica configurado");
 }
 
 // Puerto para el servidor API
@@ -812,6 +910,9 @@ if (url.pathname === "/api/users" && req.method === "POST") {
     headers: corsHeaders
   });
 }
+
+// Iniciar el sistema de revisión periódica
+iniciarRevisionPeriodica();
 
 console.log(`API server running on http://localhost:${API_PORT}`);
 await serve(handler, { port: API_PORT });
