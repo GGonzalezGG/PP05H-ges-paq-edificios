@@ -10,7 +10,8 @@ import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
 import RegistroUsuarioForm from "../components/RegistroUsuarioForm";
 import 'react-toastify/dist/ReactToastify.css';
 import ReclamosPanel from "../components/ReclamosPanel";
-
+import Dashboard from '../components/Dashboard';
+import { paquetesConfig, reclamosConfig } from '../lib/dashboardConfigs';
 
 interface Usuario {
   id: number;
@@ -47,6 +48,47 @@ export default function AdminPage() {
   const [isLoadingPaquetes, setIsLoadingPaquetes] = useState(true);
   const [activeTab, setActiveTab] = useState("usuarios");
   const router = useRouter();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+
+  // Función para manejar el retiro de paquetes
+  const handleRetirePackage = async (packageId: number) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        alert('No hay token de autenticación');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:8000/api/paquetes/${packageId}/retirar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Paquete retirado exitosamente');
+        // Trigger refresh del dashboard
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        alert(data.error || 'Error al retirar el paquete');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error de conexión al retirar el paquete');
+    }
+  };
+
+  // Función para manejar reclamos
+  const handleComplaintPackage = (packageId: number) => {
+    // Redirigir a página de reclamos o abrir modal
+    window.location.href = `/reclamos/nuevo?paquete=${packageId}`;
+  };
 
   useEffect(() => {
     // Cargar datos del usuario desde localStorage
@@ -348,95 +390,31 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Contenido de la pestaña de paquetes */}
-        {activeTab === "paquetes" && (
-          <div>
-            <h2 className="text-2xl font-semibold text-zinc-800">Lista de paquetes</h2>
-            <div className="mb-4">
-              <button 
-                onClick={refreshPaquetes}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition"
-              >
-                Actualizar lista
-              </button>
-            </div>
-            {isLoadingPaquetes ? (
-              <div className="flex justify-center">
-                <p>Cargando paquetes...</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-lg border text-zinc-950">
-                {paquetes.length > 0 ? (
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          ID
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Destinatario
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Departamento
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Fecha Entrega
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Fecha Límite
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Ubicación
-                        </th>
-                        <th className="px-6 py-3 text-left font-medium text-zinc-600 uppercase tracking-wider">
-                          Estado
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {paquetes.map((paquete) => (
-                        <tr key={paquete.id}>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {paquete.id}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {paquete.nombreDestinatario} {paquete.apellidoDestinatario}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {paquete.departamento}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {formatDate(paquete.fechaEntrega)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {formatDate(paquete.fechaLimite)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {paquete.ubicacion}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            {paquete.fechaRetiro ? (
-                              <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                                Retirado
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
-                                Pendiente
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="p-6 text-center">
-                    <p>No hay paquetes para mostrar</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+        {/* Dashboard */}
+        {activeTab == "paquetes" && (
+          <div className="container mx-auto px-4 py-6">
+      <Dashboard 
+        config={paquetesConfig}
+        viewMode="table" // o "cards"
+        showPackageDetails={true} // Habilita vista de tarjetas
+        onRetirePackage={handleRetirePackage} // Callback para retiros
+        onComplaintPackage={handleComplaintPackage} // Callback para reclamos
+        refreshInterval={30000}
+      />
+    </div>
+        )}
+        {/* Dashboard */}
+        {activeTab == "reclamos" && (
+          <div className="container mx-auto px-4 py-6">
+      <Dashboard 
+        config={reclamosConfig}
+        viewMode="table" // o "cards"
+        showPackageDetails={true} // Habilita vista de tarjetas
+        onRetirePackage={handleRetirePackage} // Callback para retiros
+        onComplaintPackage={handleComplaintPackage} // Callback para reclamos
+        refreshInterval={30000*2*5}
+      />
+    </div>
         )}
 
         {/* Contenido de la pestaña de registro de paquetes */}
@@ -451,13 +429,6 @@ export default function AdminPage() {
           <div>
             <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Registrar nuevo usuario</h2>
             <RegistroUsuarioForm onSuccess={loadUsuarios} />
-          </div>
-        )}
-        {/* Contenido de la pestaña de reclamos */}
-          {activeTab === "reclamos" && (
-          <div>
-            <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Reclamos recibidos</h2>
-            <ReclamosPanel />
           </div>
         )}
 

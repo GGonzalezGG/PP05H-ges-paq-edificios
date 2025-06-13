@@ -11,7 +11,11 @@ import {
   registrarEstadoNotificacionWhatsApp,
   createUser,
   getResidentPackages,
-  getPaquetesPorVencer
+  getPaquetesPorVencer,
+  getPaquetesPendientes,
+  getEstadisticasPaquetes,
+  getAllReclamos,
+  retirarPaquete
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -893,6 +897,222 @@ if (url.pathname === "/api/users" && req.method === "POST") {
     return new Response(JSON.stringify({
       success: false,
       message: error instanceof Error ? error.message : "Error al crear usuario",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Obtener paquetes pendientes
+if (url.pathname === "/api/paquetes/pendientes" && req.method === "GET") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+    
+    console.log("Obteniendo paquetes pendientes");
+    const paquetes = await getPaquetesPendientes();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: paquetes
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al obtener paquetes pendientes:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al obtener paquetes pendientes",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Obtener estadísticas de paquetes
+if (url.pathname === "/api/paquetes/estadisticas" && req.method === "GET") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+    
+    console.log("Obteniendo estadísticas de paquetes");
+    const estadisticas = await getEstadisticasPaquetes();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: estadisticas
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al obtener estadísticas:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al obtener estadísticas",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Retirar paquete
+if (url.pathname.startsWith("/api/paquetes/") && url.pathname.endsWith("/retirar") && req.method === "POST") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    // Extraer el ID del paquete de la URL
+    const pathParts = url.pathname.split('/');
+    const packageId = parseInt(pathParts[3]);
+    
+    if (isNaN(packageId)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "ID de paquete inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    const body = await req.json();
+    const { userId } = body; // ID del usuario que retira
+
+    console.log(`Retirando paquete ${packageId} por usuario ${userId}`);
+    const result = await retirarPaquete(packageId, userId);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: result
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al retirar paquete:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al retirar paquete",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Obtener todos los reclamos (ejemplo extensible)
+if (url.pathname === "/api/reclamos" && req.method === "GET") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+    
+    console.log("Obteniendo lista de reclamos");
+    const reclamos = await getAllReclamos();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: reclamos
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al obtener reclamos:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al obtener reclamos",
       details: error instanceof Error ? error.message : String(error)
     }), {
       headers: {

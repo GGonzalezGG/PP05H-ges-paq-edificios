@@ -639,3 +639,193 @@ export function getPaquetesPorVencer(diasAntes: number = 3) {
     db.close();
   }
 }
+
+// Función para obtener paquetes pendientes (sin retirar)
+export function getPaquetesPendientes() {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      SELECT 
+        p.*,
+        u_dest.nombre as nombre_destinatario,
+        u_dest.apellido as apellido_destinatario,
+        u_dest.N_departamento as departamento_destinatario,
+        u_ret.nombre as nombre_retirador,
+        u_ret.apellido as apellido_retirador
+      FROM Paquetes p
+      LEFT JOIN Usuarios u_dest ON p.ID_userDestinatario = u_dest.ID_usuario
+      LEFT JOIN Usuarios u_ret ON p.ID_userRetirador = u_ret.ID_usuario
+      WHERE p.fecha_retiro IS NULL
+      ORDER BY p.fecha_entrega DESC
+    `;
+    
+    const rows = db.query(query);
+    
+    const paquetes = Array.from(rows, (row) => ({
+      id: row[0],
+      idDestinatario: row[1],
+      idRetirador: row[2],
+      fechaEntrega: row[3],
+      fechaLimite: row[4],
+      fechaRetiro: row[5],
+      ubicacion: row[6],
+      nombreDestinatario: row[7],
+      apellidoDestinatario: row[8],
+      departamento: row[9],
+      nombreRetirador: row[10],
+      apellidoRetirador: row[11]
+    }));
+    
+    return paquetes;
+  } catch (error) {
+    console.error("Error al obtener paquetes pendientes:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para obtener estadísticas de paquetes
+export function getEstadisticasPaquetes() {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN fecha_retiro IS NULL THEN 1 END) as pendientes,
+        COUNT(CASE WHEN fecha_retiro IS NOT NULL THEN 1 END) as retirados,
+        COUNT(CASE 
+          WHEN fecha_retiro IS NULL 
+          AND fecha_limite < datetime('now') 
+          THEN 1 
+        END) as vencidos
+      FROM Paquetes
+    `;
+    
+    const result = db.query(query);
+    const row = result[0];
+    
+    return {
+      total: row[0] || 0,
+      pendientes: row[1] || 0,
+      retirados: row[2] || 0,
+      vencidos: row[3] || 0
+    };
+  } catch (error) {
+    console.error("Error al obtener estadísticas de paquetes:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para retirar paquete
+export function retirarPaquete(packageId: number, userId: number) {
+  const db = new DB(dbPath);
+  try {
+    // Verificar que el paquete existe y no ha sido retirado
+    const checkQuery = `
+      SELECT ID_pack, fecha_retiro 
+      FROM Paquetes 
+      WHERE ID_pack = ?
+    `;
+    
+    const paqueteExistente = db.query(checkQuery, [packageId]);
+    
+    if (paqueteExistente.length === 0) {
+      throw new Error("Paquete no encontrado");
+    }
+    
+    if (paqueteExistente[0][1] !== null) {
+      throw new Error("El paquete ya ha sido retirado");
+    }
+
+    // Actualizar el paquete con la información de retiro
+    const updateQuery = `
+      UPDATE Paquetes 
+      SET ID_userRetirador = ?, fecha_retiro = datetime('now')
+      WHERE ID_pack = ?
+    `;
+    
+    db.query(updateQuery, [userId, packageId]);
+    
+    // Obtener información actualizada del paquete
+    const infoQuery = `
+      SELECT 
+        p.*,
+        u_dest.nombre as nombre_destinatario,
+        u_dest.apellido as apellido_destinatario,
+        u_ret.nombre as nombre_retirador,
+        u_ret.apellido as apellido_retirador
+      FROM Paquetes p
+      LEFT JOIN Usuarios u_dest ON p.ID_userDestinatario = u_dest.ID_usuario
+      LEFT JOIN Usuarios u_ret ON p.ID_userRetirador = u_ret.ID_usuario
+      WHERE p.ID_pack = ?
+    `;
+    
+    const paqueteInfo = db.query(infoQuery, [packageId]);
+    
+    if (paqueteInfo.length > 0) {
+      const row = paqueteInfo[0];
+      return {
+        id: row[0],
+        idDestinatario: row[1],
+        idRetirador: row[2],
+        fechaEntrega: row[3],
+        fechaLimite: row[4],
+        fechaRetiro: row[5],
+        ubicacion: row[6],
+        nombreDestinatario: row[7],
+        apellidoDestinatario: row[8],
+        nombreRetirador: row[9],
+        apellidoRetirador: row[10]
+      };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error al retirar paquete:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función extensible para reclamos (ejemplo)
+export function getAllReclamos() {
+  const db = new DB(dbPath);
+  try {
+    // Asumir que existe una tabla Reclamos
+    const query = `
+      SELECT 
+        r.*,
+        u.nombre as nombre_residente,
+        u.apellido as apellido_residente,
+        u.N_departamento as departamento
+      FROM Reclamos r
+      LEFT JOIN Usuarios u ON r.ID_usuario = u.ID_usuario
+    `;
+    
+    const rows = db.query(query);
+    
+    const reclamos = Array.from(rows, (row) => ({
+      id: row[0],
+      idUsuario: row[1],
+      tipo: row[2],
+      descripcion: row[3],
+      estado: row[4],
+      fechaCreacion: row[5],
+      fechaResolucion: row[6],
+      nombreResidente: row[7],
+      apellidoResidente: row[8],
+      departamento: row[9]
+    }));
+    
+    return reclamos;
+  } catch (error) {
+    console.error("Error al obtener reclamos:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
