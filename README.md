@@ -2,6 +2,6 @@ Proyecto next.js con deno - Sistema de gestión de paquetes en edificios residen
 Programación profesional UAI
 
 Integrantes:
-Guillermo González
-Juan de Dios Godoy
-Benjamín Núñez
+Guillermo González -> GGonzalezGG
+Juan de Dios Godoy -> blame1617
+Benjamín Núñez -> Bruh4519
