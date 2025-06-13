@@ -9,7 +9,6 @@ import { ToastContainer } from 'react-toastify';
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
 import RegistroUsuarioForm from "../components/RegistroUsuarioForm";
 import 'react-toastify/dist/ReactToastify.css';
-import ReclamosPanel from "../components/ReclamosPanel";
 import Dashboard from '../components/Dashboard';
 import { paquetesConfig, reclamosConfig } from '../lib/dashboardConfigs';
 
