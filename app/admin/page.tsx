@@ -11,6 +11,7 @@ import RegistroUsuarioForm from "../components/RegistroUsuarioForm";
 import 'react-toastify/dist/ReactToastify.css';
 import Dashboard from '../components/Dashboard';
 import { paquetesConfig, reclamosConfig } from '../lib/dashboardConfigs';
+import QRScannerPage from "../components/QRScannerPage";
 
 interface Usuario {
   id: number;
@@ -310,6 +311,18 @@ export default function AdminPage() {
                 Reclamos
               </button>
             </li>
+            <li className="mr-2">
+              <button
+                onClick={() => setActiveTab("qr-scanner")}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                  activeTab === "qr-scanner"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Escáner QR
+              </button>
+            </li>
           </ul>
         </div>
 
@@ -428,6 +441,12 @@ export default function AdminPage() {
           <div>
             <h2 className="text-2xl font-semibold mb-6 text-zinc-800">Registrar nuevo usuario</h2>
             <RegistroUsuarioForm onSuccess={loadUsuarios} />
+          </div>
+        )}
+        {/* Contenido de la pestaña de escáner QR */}
+        {activeTab === "qr-scanner" && (
+          <div>
+            <QRScannerPage />
           </div>
         )}
 
