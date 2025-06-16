@@ -15,7 +15,10 @@ import {
   getPaquetesPendientes,
   getEstadisticasPaquetes,
   getAllReclamos,
-  retirarPaquete
+  retirarPaquete,
+  generarCodigoQRRetiro,
+  procesarEscaneoQR,
+  limpiarCodigosQRExpirados
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -579,7 +582,7 @@ if (url.pathname === "/api/webhook/whatsapp" && req.method === "GET") {
       console.log("Esperando datos");
       const body = await req.json();
       console.log("sleep para ver el toast")
-      await sleep(2000);
+      //await sleep(2000);
       const { username, password } = body;
       console.log("Datos obtenidos:" + body);
       console.log("verificando si se entregaron ambas")
@@ -1114,6 +1117,209 @@ if (url.pathname === "/api/reclamos" && req.method === "GET") {
       success: false,
       error: "Error al obtener reclamos",
       details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+// Endpoint para generar código QR de retiro
+if (url.pathname === "/api/resident/generate-qr" && req.method === "POST") {
+  try {
+    // Verificar autenticación
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token de autorización requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const userData = verifyToken(token);
+    
+    if (!userData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const body = await req.json();
+    const { paqueteId } = body;
+
+    if (!paqueteId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "ID del paquete requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Generar código QR
+    const resultado = generarCodigoQRRetiro(paqueteId, userData.userId);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: resultado
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+
+  } catch (error) {
+    console.error("Error al generar código QR:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || "Error interno del servidor"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// Endpoint para procesar escaneo de QR
+if (url.pathname === "/api/admin/scan-qr" && req.method === "POST") {
+  try {
+    // Verificar autenticación
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token de autorización requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const userData = verifyToken(token);
+    
+    if (!userData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    //
+    if (!userData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Acceso denegado. Solo administradores y conserjes pueden escanear códigos QR"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 403
+      });
+    }
+
+    const body = await req.json();
+    const { codigoQR } = body;
+
+    if (!codigoQR) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Código QR requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Procesar escaneo
+    const resultado = procesarEscaneoQR(codigoQR, userData.userId);
+    
+    return new Response(JSON.stringify({
+      success: resultado.success,
+      data: resultado.success ? resultado.paqueteInfo : null,
+      error: resultado.success ? null : resultado.error
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: resultado.success ? 200 : 400
+    });
+
+  } catch (error) {
+    console.error("Error al procesar escaneo QR:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || "Error interno del servidor"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// Endpoint para limpiar códigos QR expirados
+if (url.pathname === "/api/admin/cleanup-expired-qr" && req.method === "POST") {
+  try {
+    const resultado = limpiarCodigosQRExpirados();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: resultado
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+
+  } catch (error) {
+    console.error("Error al limpiar códigos QR:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || "Error al limpiar códigos QR"
     }), {
       headers: {
         "Content-Type": "application/json",

@@ -1,5 +1,6 @@
 // app/db/statements.ts
 import { DB } from "https://deno.land/x/sqlite/mod.ts";
+import { v4 } from "https://deno.land/std@0.81.0/uuid/mod.ts";
 // Ruta a tu archivo SQLite
 const dbPath = "./app/db/database.db";
 
@@ -824,6 +825,201 @@ export function getAllReclamos() {
     return reclamos;
   } catch (error) {
     console.error("Error al obtener reclamos:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para generar código QR para retiro de paquete
+export function generarCodigoQRRetiro(paqueteId: number, residenteId: number) {
+  const db = new DB(dbPath);
+  try {
+    // Verificar que el paquete existe y pertenece al residente
+    const verificarQuery = `
+      SELECT p.*, u.nombre, u.N_departamento
+      FROM Paquetes p
+      JOIN Usuarios u ON p.ID_userDestinatario = u.ID_usuario
+      WHERE p.ID_pack = ? AND p.ID_userDestinatario = ? AND p.fecha_retiro IS NULL
+    `;
+    
+    const paqueteResult = db.query(verificarQuery, [paqueteId, residenteId]);
+    const paqueteData = Array.from(paqueteResult);
+    
+    if (paqueteData.length === 0) {
+      throw new Error("Paquete no encontrado o ya retirado");
+    }
+    
+    // Generar código QR único
+    const codigoQR = v4.generate();
+    const fechaGeneracion = new Date().toISOString();
+    const fechaExpiracion = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas
+    
+    // Insertar código QR en la tabla (necesitarás crear esta tabla)
+    const insertQRQuery = `
+      INSERT INTO CodigosQR (
+        codigo_qr,
+        ID_paquete,
+        ID_residente,
+        fecha_generacion,
+        fecha_expiracion,
+        estado
+      ) VALUES (?, ?, ?, ?, ?, 'activo')
+    `;
+    
+    db.query(insertQRQuery, [
+      codigoQR,
+      paqueteId,
+      residenteId,
+      fechaGeneracion,
+      fechaExpiracion
+    ]);
+    
+    const paquete = paqueteData[0];
+    
+    return {
+      success: true,
+      codigoQR,
+      paqueteInfo: {
+        id: paquete[0],
+        residente: paquete[6],
+        departamento: paquete[7],
+        fechaEntrega: paquete[2],
+        ubicacion: paquete[4]
+      },
+      fechaExpiracion
+    };
+  } catch (error) {
+    console.error("Error al generar código QR:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para validar y procesar escaneo de QR
+export function procesarEscaneoQR(codigoQR: string, adminId: number) {
+  const db = new DB(dbPath);
+  try {
+    // Buscar el código QR y obtener información del paquete
+    // CAMBIO: Eliminamos el JOIN con admin y agregamos JOIN con el usuario retirador
+    const buscarQRQuery = `
+      SELECT 
+        qr.*,
+        p.*,
+        u_destinatario.nombre as nombre_destinatario,
+        u_destinatario.N_departamento,
+        u_destinatario.telefono,
+        u_retirador.nombre as nombre_retirador
+      FROM CodigosQR qr
+      JOIN Paquetes p ON qr.ID_paquete = p.ID_pack
+      JOIN Usuarios u_destinatario ON p.ID_userDestinatario = u_destinatario.ID_usuario
+      JOIN Usuarios u_retirador ON qr.ID_residente = u_retirador.ID_usuario
+      WHERE qr.codigo_qr = ? AND qr.estado = 'activo'
+    `;
+    
+    const qrResult = db.query(buscarQRQuery, [codigoQR]);
+    const qrData = Array.from(qrResult);
+    
+    if (qrData.length === 0) {
+      return {
+        success: false,
+        error: "Código QR no válido o ya utilizado"
+      };
+    }
+    
+    const data = qrData[0];
+    const fechaActual = new Date().toISOString();
+    
+    console.log("Datos del QR procesado:");
+    console.log("ID QR:", data[0]);
+    console.log("Código QR:", data[1]);
+    console.log("ID Paquete:", data[2]);
+    console.log("ID Residente (quien retira):", data[3]);
+    console.log("ID Pack (desde tabla paquetes):", data[8]);
+    console.log("Nombre destinatario:", data[15]);
+    console.log("Nombre retirador:", data[18]);
+    console.log("Fecha entrega:", data[11]);
+    console.log("Fecha retiro:", data[13]);
+    console.log("================================");
+    console.log("data: " + qrData)
+
+    // Verificar si el código QR ha expirado
+    if (new Date() > new Date(data[5])) { // data[5] es fecha_expiracion
+      return {
+        success: false,
+        error: "Código QR expirado"
+      };
+    }
+    
+    // Verificar si el paquete ya fue retirado
+    if (data[13] !== null) { // data[12] es fecha_retiro
+      return {
+        success: false,
+        error: "Este paquete ya fue retirado"
+      };
+    }
+    
+    // CAMBIO: Actualizar el paquete como retirado con el ID del usuario que generó el QR
+    const retirarQuery = `
+      UPDATE Paquetes 
+      SET fecha_retiro = ?, ID_userRetirador = ?
+      WHERE ID_pack = ?
+    `;
+    
+    db.query(retirarQuery, [fechaActual, data[3], data[8]]); // data[3] es ID_residente (quien retira)
+    
+    // Marcar el código QR como utilizado
+    const actualizarQRQuery = `
+      UPDATE CodigosQR 
+      SET estado = 'utilizado', fecha_uso = ?
+      WHERE codigo_qr = ?
+    `;
+    
+    db.query(actualizarQRQuery, [fechaActual, codigoQR]);
+    
+    return {
+      success: true,
+      paqueteInfo: {
+        ID_pack: data[8], // data[8] es ID_pack
+        destinatario: data[15], // data[14] es nombre_destinatario
+        departamento: data[16], // data[15] es N_departamento
+        telefono: data[17], // data[16] es telefono
+        fechaEntrega: data[11], // data[10] es fecha_entrega
+        ubicacion: data[14], // data[11] es ubicacion
+        fechaRetiro: fechaActual,
+        userRetirador: data[18] // CAMBIO: data[17] es nombre_retirador en lugar de adminRetiro
+      }
+    };
+    
+  } catch (error) {
+    console.error("Error al procesar escaneo QR:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para limpiar códigos QR expirados
+export function limpiarCodigosQRExpirados() {
+  const db = new DB(dbPath);
+  try {
+    const fechaActual = new Date().toISOString();
+    
+    const updateQuery = `
+      UPDATE CodigosQR 
+      SET estado = 'expirado'
+      WHERE fecha_expiracion < ? AND estado = 'activo'
+    `;
+    
+    const result = db.query(updateQuery, [fechaActual]);
+    
+    return {
+      success: true,
+      codigosExpirados: result.length
+    };
+  } catch (error) {
+    console.error("Error al limpiar códigos QR expirados:", error.message);
     throw error;
   } finally {
     db.close();

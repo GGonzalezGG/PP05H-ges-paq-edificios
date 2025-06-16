@@ -6,7 +6,6 @@ import { PackageData } from '../components/PackageDisplay';
 import { useRouter } from "next/navigation";
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
 
-
 // Importación dinámica del componente PackageDisplay sin SSR
 const PackageDisplay = dynamic(
   () => import('../components/PackageDisplay'),
@@ -16,10 +15,65 @@ const PackageDisplay = dynamic(
   }
 );
 
+// Componente Modal para mostrar QR
+const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Código QR de Retiro</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="text-center">
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+            <div className="text-4xl font-mono text-center p-4 bg-white border-2 border-dashed border-gray-300 rounded">
+              {qrData?.codigoQR || 'QR CODE'}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Este código representa tu QR único
+            </p>
+          </div>
+          
+          <div className="text-sm text-gray-600 mb-4">
+            <p><strong>Paquete:</strong> #{packageData?.paquete?.ID_pack}</p>
+            <p><strong>Ubicación:</strong> {packageData?.paquete?.ubicacion}</p>
+            <p><strong>Expira:</strong> {qrData?.fechaExpiracion ? new Date(qrData.fechaExpiracion).toLocaleString() : 'N/A'}</p>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+            <p><strong>Instrucciones:</strong></p>
+            <p>Muestra este código al conserje o administrador para retirar tu paquete. El código expira en 24 horas.</p>
+          </div>
+        </div>
+        
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ResidentePage = () => {
   const [packageData, setPackageData] = useState<PackageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [qrModal, setQrModal] = useState({ isOpen: false, qrData: null, packageData: null });
   const router = useRouter();
 
   // Función para obtener paquetes desde la API
@@ -69,10 +123,49 @@ const ResidentePage = () => {
     fetchPackages();
   }, []);
 
-  // Handlers para las acciones (placeholder por ahora)
-  const handleRetirePackage = (packageId: number) => {
-    console.log(`Intentando retirar paquete ID: ${packageId}`);
-    alert(`Funcionalidad de retiro para paquete ${packageId} - Aquí implementarías la lógica de retiro`);
+  // Función para generar código QR
+  const handleRetirePackage = async (packageId: number) => {
+    const toastId = showLoadingToast("Generando código QR...");
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('No hay sesión activa. Por favor, inicia sesión.');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/resident/generate-qr', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ paqueteId: packageId })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        hideLoadingToast(toastId);
+        
+        // Encontrar los datos del paquete
+        const packageInfo = packageData.find(pkg => pkg.paquete.ID_pack === packageId);
+        
+        // Mostrar modal con QR
+        setQrModal({
+          isOpen: true,
+          qrData: result.data,
+          packageData: packageInfo
+        });
+      } else {
+        hideLoadingToast(toastId);
+        alert(`Error al generar código QR: ${result.error}`);
+      }
+    } catch (error) {
+      hideLoadingToast(toastId);
+      console.error('Error al generar código QR:', error);
+      alert('Error de conexión al generar código QR');
+    }
   };
 
   const handleComplaint = (packageId: number) => {
@@ -141,35 +234,39 @@ const ResidentePage = () => {
     );
   }
 
-    const handleLogout = () => {
-      const toastId = showLoadingToast("Cerrando sesión...");
-      
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userData");
-      
-      setTimeout(() => {
-        hideLoadingToast(toastId);
-        router.push("/login");
-      }, 500);
-    };
+  const handleLogout = () => {
+    const toastId = showLoadingToast("Cerrando sesión...");
+    
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userData");
+    
+    setTimeout(() => {
+      hideLoadingToast(toastId);
+      router.push("/login");
+    }, 500);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Portal del Residente
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Gestiona tus paquetes y encomiendas
-          </p>
-          <button
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Portal del Residente
+              </h1>
+              <p className="mt-2 text-gray-600">
+                Gestiona tus paquetes y encomiendas
+              </p>
+            </div>
+            <button
               onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600 text-white text-sm px-5 py-1 rounded-md shadow-md transition"
+              className="bg-red-500 hover:bg-red-600 text-white text-sm px-5 py-2 rounded-md shadow-md transition"
             >
               Cerrar sesión
             </button>
+          </div>
         </div>
       </div>
 
@@ -280,6 +377,14 @@ const ResidentePage = () => {
           </div>
         )}
       </div>
+
+      {/* QR Modal */}
+      <QRModal
+        isOpen={qrModal.isOpen}
+        onClose={() => setQrModal({ isOpen: false, qrData: null, packageData: null })}
+        qrData={qrModal.qrData}
+        packageData={qrModal.packageData}
+      />
     </div>
   );
 };
