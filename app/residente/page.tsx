@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { PackageData } from '../components/PackageDisplay';
 import { useRouter } from "next/navigation";
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
+import QRCode from 'qrcode';
 
 // Importación dinámica del componente PackageDisplay sin SSR
 const PackageDisplay = dynamic(
@@ -17,6 +18,43 @@ const PackageDisplay = dynamic(
 
 // Componente Modal para mostrar QR
 const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
+  const [qrImageUrl, setQrImageUrl] = useState<string>('');
+  const [generating, setGenerating] = useState(false);
+
+  // Generar imagen QR cuando se abre el modal
+  useEffect(() => {
+    const generateQRImage = async () => {
+      if (isOpen && qrData?.codigoQR) {
+        setGenerating(true);
+        try {
+          const qrImageDataUrl = await QRCode.toDataURL(qrData.codigoQR, {
+            width: 200,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          });
+          setQrImageUrl(qrImageDataUrl);
+        } catch (error) {
+          console.error('Error generando QR:', error);
+        } finally {
+          setGenerating(false);
+        }
+      }
+    };
+
+    generateQRImage();
+  }, [isOpen, qrData]);
+
+  // Limpiar imagen cuando se cierra el modal
+  useEffect(() => {
+    if (!isOpen) {
+      setQrImageUrl('');
+      setGenerating(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -36,12 +74,27 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
         
         <div className="text-center">
           <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <div className="text-4xl font-mono text-center p-4 bg-white border-2 border-dashed border-gray-300 rounded">
-              {qrData?.codigoQR || 'QR CODE'}
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Este código representa tu QR único
-            </p>
+            {generating ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Generando QR...</span>
+              </div>
+            ) : qrImageUrl ? (
+              <div className="flex flex-col items-center">
+                <img 
+                  src={qrImageUrl} 
+                  alt="Código QR" 
+                  className="mb-2 border-2 border-gray-300 rounded"
+                />
+                <p className="text-xs text-gray-500">
+                  Código QR único para retiro
+                </p>
+              </div>
+            ) : (
+              <div className="text-4xl font-mono text-center p-4 bg-white border-2 border-dashed border-gray-300 rounded">
+                {qrData?.codigoQR || 'QR CODE'}
+              </div>
+            )}
           </div>
           
           <div className="text-sm text-gray-600 mb-4">
@@ -56,7 +109,16 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
           </div>
         </div>
         
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end space-x-3">
+          {qrImageUrl && (
+            <a
+              href={qrImageUrl}
+              download={`QR-Paquete-${packageData?.paquete?.ID_pack}.png`}
+              className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md"
+            >
+              Descargar QR
+            </a>
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
