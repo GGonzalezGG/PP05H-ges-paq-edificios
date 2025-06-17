@@ -741,14 +741,16 @@ export function retirarPaquete(packageId: number, userId: number) {
       throw new Error("El paquete ya ha sido retirado");
     }
 
+    const fechaActual = new Date().toISOString();
+
     // Actualizar el paquete con la información de retiro
     const updateQuery = `
       UPDATE Paquetes 
-      SET ID_userRetirador = ?, fecha_retiro = datetime('now')
+      SET ID_userRetirador = ?, fecha_retiro = ?
       WHERE ID_pack = ?
     `;
     
-    db.query(updateQuery, [userId, packageId]);
+    db.query(updateQuery, [userId, fechaActual , packageId]);
     
     // Obtener información actualizada del paquete
     const infoQuery = `

@@ -1031,6 +1031,7 @@ if (url.pathname.startsWith("/api/paquetes/") && url.pathname.endsWith("/retirar
     // Extraer el ID del paquete de la URL
     const pathParts = url.pathname.split('/');
     const packageId = parseInt(pathParts[3]);
+    console.log("ID paquete: " + packageId);
     
     if (isNaN(packageId)) {
       return new Response(JSON.stringify({
@@ -1045,8 +1046,43 @@ if (url.pathname.startsWith("/api/paquetes/") && url.pathname.endsWith("/retirar
       });
     }
 
-    const body = await req.json();
-    const { userId } = body; // ID del usuario que retira
+    const tokenResult = verifyToken(token);
+
+    // Manejar la respuesta de verifyToken correctamente
+    let userId;
+    if (typeof tokenResult === 'object' && tokenResult !== null) {
+      // Si verifyToken devuelve un objeto { valid: boolean, userId?: number }
+      if (!tokenResult.valid || !tokenResult.userId) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Token inválido o expirado"
+        }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          },
+          status: 401
+        });
+      }
+      userId = tokenResult.userId;
+    } else {
+      // Si verifyToken devuelve directamente el userId o null/undefined
+      if (!tokenResult) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Token inválido o expirado"
+        }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          },
+          status: 401
+        });
+      }
+      userId = tokenResult;
+    }
+
+    console.log("userID: " + userId)
 
     console.log(`Retirando paquete ${packageId} por usuario ${userId}`);
     const result = await retirarPaquete(packageId, userId);
