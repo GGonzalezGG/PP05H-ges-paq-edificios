@@ -1,8 +1,6 @@
-// Reemplaza completamente el componente QRScannerPage en app/components/QRScannerPage:
-
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { showLoadingToast, hideLoadingToast } from './toastLoading';
 
@@ -122,25 +120,59 @@ const QRScannerPage = () => {
   });
   const [cameras, setCameras] = useState([]);
   const [selectedCamera, setSelectedCamera] = useState('');
+  const [scannerError, setScannerError] = useState('');
+  
+  // Refs para manejar el scanner
   const html5QrcodeRef = useRef(null);
-  const scannerRef = useRef(null);
+  const scannerStateRef = useRef({
+    isScanning: false,
+    scanner: null
+  });
 
   // Obtener cámaras disponibles
   useEffect(() => {
     const getCameras = async () => {
       try {
         const devices = await Html5Qrcode.getCameras();
+        console.log('Cámaras disponibles:', devices);
         setCameras(devices);
         if (devices.length > 0) {
           setSelectedCamera(devices[0].id);
         }
       } catch (error) {
         console.error('Error obteniendo cámaras:', error);
+        setScannerError('No se pudieron obtener las cámaras disponibles');
       }
     };
 
     getCameras();
   }, []);
+
+  // Función para limpiar el scanner de forma segura
+  // 3. Mejora la función de limpieza
+  const cleanupScanner = useCallback(async () => {
+    if (scannerStateRef.current.scanner && scannerStateRef.current.isScanning) {
+      try {
+        await scannerStateRef.current.scanner.stop();
+        await scannerStateRef.current.scanner.clear();
+      } catch (error) {
+        console.error('Error al limpiar scanner:', error);
+      } finally {
+        scannerStateRef.current.isScanning = false;
+        scannerStateRef.current.scanner = null;
+      }
+    }
+  }, []);
+
+  // 1. Nuevo efecto para limpiar el scanner al cambiar de cámara
+  useEffect(() => {
+    const initCamera = async () => {
+      if (selectedCamera && !cameraScanning) {
+        await cleanupScanner();
+      }
+    };
+    initCamera();
+  }, [selectedCamera]);
 
   // Función para procesar escaneo manual
   const handleManualScan = async () => {
@@ -153,52 +185,68 @@ const QRScannerPage = () => {
   };
 
   // Función para iniciar escaneo con cámara
+  // 2. Modifica la función startCameraScan
   const startCameraScan = async () => {
-    if (!selectedCamera) {
-      alert('No hay cámaras disponibles');
-      return;
-    }
-
+    if (!selectedCamera) return;
+    
+    await cleanupScanner();
     try {
       setCameraScanning(true);
+      setScannerError('');
       
       const html5QrCode = new Html5Qrcode("qr-reader");
-      html5QrcodeRef.current = html5QrCode;
-
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      };
+      scannerStateRef.current.scanner = html5QrCode;
 
       await html5QrCode.start(
         selectedCamera,
-        config,
-        async (decodedText, decodedResult) => {
-          // Detener scanner y procesar código
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          disableFlip: false,
+        },
+        async (decodedText) => {
           await stopCameraScan();
           await processScanCode(decodedText);
         },
         (errorMessage) => {
-          // Error silencioso durante el escaneo normal
+          if (errorMessage && !errorMessage.includes('No QR code found')) {
+            console.warn('Error de escaneo:', errorMessage);
+          }
         }
       );
+      scannerStateRef.current.isScanning = true;
     } catch (error) {
       console.error('Error iniciando cámara:', error);
+      setScannerError('Error al acceder a la cámara. Verifica los permisos.');
+      scannerStateRef.current.isScanning = false;
+      scannerStateRef.current.scanner = null;
       setCameraScanning(false);
-      alert('Error al acceder a la cámara. Verifica los permisos.');
     }
   };
 
   // Función para detener escaneo con cámara
   const stopCameraScan = async () => {
     try {
-      if (html5QrcodeRef.current) {
-        await html5QrcodeRef.current.stop();
-        html5QrcodeRef.current = null;
+      console.log('Deteniendo scanner...');
+      setCameraScanning(false);
+      
+      if (scannerStateRef.current.scanner && scannerStateRef.current.isScanning) {
+        await scannerStateRef.current.scanner.stop();
+        console.log('Scanner detenido');
       }
+      
+      // Limpiar referencias
+      scannerStateRef.current.isScanning = false;
+      scannerStateRef.current.scanner = null;
+      html5QrcodeRef.current = null;
+      
     } catch (error) {
       console.error('Error deteniendo cámara:', error);
+      // Forzar limpieza del estado incluso si hay error
+      scannerStateRef.current.isScanning = false;
+      scannerStateRef.current.scanner = null;
+      html5QrcodeRef.current = null;
     } finally {
       setCameraScanning(false);
     }
@@ -215,6 +263,8 @@ const QRScannerPage = () => {
         throw new Error('No hay sesión activa');
       }
 
+      console.log('Procesando código:', code);
+
       const response = await fetch('http://localhost:8000/api/admin/scan-qr', {
         method: 'POST',
         headers: {
@@ -225,6 +275,7 @@ const QRScannerPage = () => {
       });
 
       const result = await response.json();
+      console.log('Respuesta del servidor:', result);
       
       hideLoadingToast(toastId);
 
@@ -266,14 +317,29 @@ const QRScannerPage = () => {
     }
   };
 
-  // Limpiar al desmontar componente
+  // Cleanup al desmontar componente
   useEffect(() => {
     return () => {
-      if (html5QrcodeRef.current) {
-        html5QrcodeRef.current.stop().catch(console.error);
+      console.log('Componente desmontándose, limpiando scanner...');
+      cleanupScanner();
+    };
+  }, [cleanupScanner]);
+
+  // Cleanup cuando cambia la pestaña
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && cameraScanning) {
+        console.log('Página oculta, deteniendo scanner...');
+        stopCameraScan();
       }
     };
-  }, []);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [cameraScanning]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -296,6 +362,13 @@ const QRScannerPage = () => {
             <h2 className="text-xl font-semibold text-gray-900 mb-6">
               Escanear Código QR
             </h2>
+            
+            {/* Error Display */}
+            {scannerError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{scannerError}</p>
+              </div>
+            )}
             
             {/* Manual Input */}
             <div className="mb-6">
@@ -350,31 +423,36 @@ const QRScannerPage = () => {
                 </div>
               )}
 
-              {/* Camera Preview */}
-              <div className="mb-4">
-                <div id="qr-reader" className="w-full max-w-sm mx-auto bg-gray-100 rounded-lg overflow-hidden">
-                  {!cameraScanning && (
-                    <div className="h-64 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-300 rounded-full flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                        </div>
-                        <p className="text-gray-600 text-sm">Vista previa de la cámara</p>
-                      </div>
+              {/* Contenedor de cámara modificado */}
+            <div className="mb-4 relative">
+              <div 
+                id="qr-reader"
+                className="w-full max-w-sm mx-auto bg-gray-100 rounded-lg overflow-hidden"
+                style={{ minHeight: '250px' }}
+              />
+              
+              {/* Placeholder superpuesto (no dentro del qr-reader) */}
+              {!cameraScanning && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-300 rounded-full flex items-center justify-center">
+                      <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
                     </div>
-                  )}
+                    <p className="text-gray-600 text-sm">Vista previa de la cámara</p>
+                  </div>
                 </div>
-              </div>
-
+              )}
+            </div>
+            
               {/* Camera Controls */}
               <div className="flex gap-3 justify-center">
                 {!cameraScanning ? (
                   <button
                     onClick={startCameraScan}
-                    disabled={!selectedCamera || scanning}
+                    disabled={!selectedCamera || scanning || cameras.length === 0}
                     className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors"
                   >
                     Iniciar Cámara
@@ -434,7 +512,7 @@ const QRScannerPage = () => {
                     </div>
                     {scan.success && (
                       <div className="text-sm text-gray-600 ml-6">
-                        <p>{scan.packageInfo?.residente} - {scan.packageInfo?.departamento}</p>
+                        <p>{scan.packageInfo?.destinatario} - {scan.packageInfo?.departamento}</p>
                       </div>
                     )}
                   </div>

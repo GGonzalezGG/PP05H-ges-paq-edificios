@@ -20,6 +20,7 @@ const PackageDisplay = dynamic(
 const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
   const [qrImageUrl, setQrImageUrl] = useState<string>('');
   const [generating, setGenerating] = useState(false);
+  const [showQRText, setShowQRText] = useState(false);
 
   // Generar imagen QR cuando se abre el modal
   useEffect(() => {
@@ -52,14 +53,28 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
     if (!isOpen) {
       setQrImageUrl('');
       setGenerating(false);
+      setShowQRText(false);
     }
   }, [isOpen]);
+
+  // Función para copiar el código QR al portapapeles
+  const copyQRCode = async () => {
+    if (qrData?.codigoQR) {
+      try {
+        await navigator.clipboard.writeText(qrData.codigoQR);
+        alert('Código QR copiado al portapapeles');
+      } catch (error) {
+        console.error('Error al copiar:', error);
+        alert('No se pudo copiar el código');
+      }
+    }
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Código QR de Retiro</h3>
           <button
@@ -86,9 +101,38 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
                   alt="Código QR" 
                   className="mb-2 border-2 border-gray-300 rounded"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mb-3">
                   Código QR único para retiro
                 </p>
+                
+                {/* Botón para mostrar/ocultar el texto del código QR */}
+                <button
+                  onClick={() => setShowQRText(!showQRText)}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline mb-2"
+                >
+                  {showQRText ? 'Ocultar código' : 'Ver código como texto'}
+                </button>
+                
+                {/* Mostrar el texto del código QR */}
+                {showQRText && qrData?.codigoQR && (
+                  <div className="mt-3 p-3 bg-white border-2 border-gray-200 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-2 font-medium">Código QR:</p>
+                    <div className="relative">
+                      <code className="text-xs font-mono text-gray-800 break-all bg-gray-50 p-2 rounded block">
+                        {qrData.codigoQR}
+                      </code>
+                      <button
+                        onClick={copyQRCode}
+                        className="absolute top-1 right-1 p-1 text-gray-500 hover:text-gray-700 bg-white rounded border"
+                        title="Copiar código"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-4xl font-mono text-center p-4 bg-white border-2 border-dashed border-gray-300 rounded">
