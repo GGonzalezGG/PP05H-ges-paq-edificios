@@ -254,14 +254,20 @@ if (url.pathname.startsWith("/api/users/") && req.method === "DELETE") {
           // Enviar mensaje template
           await sendEmail({
             from: "onboarding@resend.dev",
-            to: "xkiritox1995@gmail.com", // Change to your test email
-            subject: "📦 Package Notification Test",
+            to: contactoUsuario.data.correo, // Se usa la variable dinámica
+            subject: "Recepción de paquete en conserjería 📦",
             html: `
-              <h2>Tu paquete ha llegado</h2>
-              <p>Hola, hemos recibido tu paquete y se encuentra en conserjeria</p>
-              <p><strong>Status:</strong> Delivered</p>
+              <h2>¡Tu paquete ha llegado!</h2>
+              <p>Hola ${nombreCompleto}, hemos recibido tu paquete y se encuentra en conserjería.</p>
+              <p>Por favor ven a retirarlo apenas puedas</p>
+              <p><strong>Estado:</strong> Pendiente</p>
             `,
-      })}catch(error){}}
+          });
+        } catch (error) {
+          console.error("Error al enviar correo:", error);
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
         message: "Paquete y notificación registrados correctamente",
