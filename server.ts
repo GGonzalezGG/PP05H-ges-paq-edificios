@@ -86,7 +86,7 @@ if (url.pathname.startsWith("/api/users/") && req.method === "DELETE") {
         status: 200,
       });
     } else {
-      return new Response(JSON.stringify({ success: false, error: "Usuario no encontrado" }), {
+      return new Response(JSON.stringify({ success: false, error: "Usuario no se puede eliminar ya que tiene dependencias" }), {
         headers: { "Content-Type": "application/json", ...corsHeaders },
         status: 404,
       });
