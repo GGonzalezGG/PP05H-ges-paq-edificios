@@ -47,7 +47,6 @@ export default function AdminPage() {
   const [isLoadingPaquetes, setIsLoadingPaquetes] = useState(true);
   const [activeTab, setActiveTab] = useState("usuarios");
   const router = useRouter();
-  const [editingUser, setEditingUser] = useState(null);
 
 
   useEffect(() => {
@@ -192,7 +191,7 @@ export default function AdminPage() {
   if (!confirmDelete) return;
 
   try {
-    const res = await fetch(`/api/users/${id}`, {
+    const res = await fetch(`http://localhost:8000/api/users/${id}`, {
       method: "DELETE"
     });
 
@@ -207,7 +206,7 @@ export default function AdminPage() {
     alert("Error de red o servidor");
     console.error("Error al eliminar usuario:", error);
   }
-};
+  };
 
   return (
     <RouteGuard adminOnly={true}>

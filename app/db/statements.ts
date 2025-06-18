@@ -88,10 +88,24 @@ export function authenticateUser(username: string, password: string) {
 
 export function deleteUser(id: string) {
   const db = new DB(dbPath);
+
   try {
-    const result = db.query("DELETE FROM Usuarios WHERE id = ?", [id]);
-    return true; // si no hay error, se asume éxito
+    // Activar claves foráneas en SQLite
+    db.execute("PRAGMA foreign_keys = ON;");
+
+    // Intentar eliminar al usuario
+    const result = db.execute("DELETE FROM Usuarios WHERE ID_usuario = ?", [Number(id)]);
+    console.log(`Filas eliminadas: ${result.changes}`);
+
+    return result.changes > 0;
   } catch (error) {
+    // Manejar error por claves foráneas
+    if (error.message.includes("FOREIGN KEY")) {
+      console.error("No se puede eliminar porque hay dependencias");
+      return false;
+    }
+
+    // Otro tipo de error
     console.error("Error al eliminar usuario:", error.message);
     return false;
   } finally {

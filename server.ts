@@ -72,8 +72,10 @@ async function handler(req: Request): Promise<Response> {
   }
 // Ruta para eliminar un usuario
 if (url.pathname.startsWith("/api/users/") && req.method === "DELETE") {
+  console.log("Solicitud DELETE recibida en Deno:", url.pathname);
   try {
     const userId = url.pathname.split("/").pop(); // obtiene el ID
+    console.log("ID recibido para eliminar:", userId);
     if (!userId) throw new Error("ID de usuario no proporcionado");
 
     const deleted = await deleteUser(userId);
