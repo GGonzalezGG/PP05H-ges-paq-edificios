@@ -1,3 +1,4 @@
+// app/lib/dashboardConfigs
 import React from 'react';
 import { Clock, CheckCircle, AlertTriangle, Package, FileText } from 'lucide-react';
 
@@ -117,15 +118,6 @@ export const reclamosConfig = {
       render: (item: any) => `#${item.id}`
     },
     {
-      key: 'tipo',
-      label: 'Tipo',
-      render: (item: any) => (
-        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
-          {item.tipo || 'General'}
-        </span>
-      )
-    },
-    {
       key: 'descripcion',
       label: 'Descripción',
       render: (item: any) => (
@@ -133,11 +125,6 @@ export const reclamosConfig = {
           {item.descripcion || 'Sin descripción'}
         </div>
       )
-    },
-    {
-      key: 'fechaCreacion',
-      label: 'Fecha Creación',
-      render: (item: any) => formatDate(item.fechaCreacion)
     },
     {
       key: 'residente',
@@ -150,19 +137,27 @@ export const reclamosConfig = {
           <div className="text-gray-500">Depto. {item.departamento}</div>
         </div>
       )
+    },
+    {
+      key: 'paquete',
+      label: 'Paquete',
+      render: (item: any) => 
+        item.idPack ? `Paquete #${item.idPack}` : 'Sin paquete asociado'
+    },
+    {
+      key: 'acciones',
+      label: 'Acciones',
+      render: (item: any) => 'acciones' // Se manejará en el componente
     }
   ],
   statusConfig: {
     getStatus: (item: any) => {
       switch (item.estado?.toLowerCase()) {
-        case 'resuelto': 
-        case 'cerrado': 
+        case 'completado': 
           return 'delivered';
-        case 'en_proceso': 
-        case 'procesando': 
+        case 'en_revision': 
           return 'processing';
         case 'pendiente': 
-        case 'abierto': 
         default: 
           return 'pending';
       }

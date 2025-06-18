@@ -18,7 +18,8 @@ import {
   retirarPaquete,
   generarCodigoQRRetiro,
   procesarEscaneoQR,
-  limpiarCodigosQRExpirados
+  limpiarCodigosQRExpirados,
+  updateReclamoStatus
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -1356,6 +1357,104 @@ if (url.pathname === "/api/admin/cleanup-expired-qr" && req.method === "POST") {
     return new Response(JSON.stringify({
       success: false,
       error: error.message || "Error al limpiar códigos QR"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// NUEVO ENDPOINT en server.ts - Actualizar estado de reclamo
+if (url.pathname.startsWith("/api/reclamos/") && req.method === "PUT") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+   
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    // Extraer ID del reclamo de la URL
+    const pathParts = url.pathname.split("/");
+    const reclamoId = parseInt(pathParts[pathParts.length - 1]);
+    
+    if (isNaN(reclamoId)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "ID de reclamo inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    const requestBody = await req.json();
+    const { status } = requestBody;
+
+    if (!status) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Estado requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Validar estados permitidos
+    const estadosValidos = ['pendiente', 'en_revision', 'completado'];
+    if (!estadosValidos.includes(status)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Estado no válido. Estados permitidos: " + estadosValidos.join(', ')
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+   
+    console.log(`Actualizando reclamo ${reclamoId} a estado: ${status}`);
+    const reclamoActualizado = await updateReclamoStatus(reclamoId, status);
+   
+    return new Response(JSON.stringify({
+      success: true,
+      data: reclamoActualizado,
+      message: "Estado del reclamo actualizado correctamente"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al actualizar estado del reclamo:", error);
+   
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al actualizar estado del reclamo",
+      details: error instanceof Error ? error.message : String(error)
     }), {
       headers: {
         "Content-Type": "application/json",

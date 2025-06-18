@@ -798,32 +798,33 @@ export function retirarPaquete(packageId: number, userId: number) {
 export function getAllReclamos() {
   const db = new DB(dbPath);
   try {
-    // Asumir que existe una tabla Reclamos
     const query = `
-      SELECT 
-        r.*,
+      SELECT
+        r.ID_reclamo,
+        r.ID_usuario,
+        r.ID_pack,
+        r.descripción,
+        r.status,
         u.nombre as nombre_residente,
         u.apellido as apellido_residente,
         u.N_departamento as departamento
-      FROM Reclamos r
+      FROM reclamos r
       LEFT JOIN Usuarios u ON r.ID_usuario = u.ID_usuario
     `;
-    
+   
     const rows = db.query(query);
-    
+   
     const reclamos = Array.from(rows, (row) => ({
       id: row[0],
       idUsuario: row[1],
-      tipo: row[2],
+      idPack: row[2],
       descripcion: row[3],
       estado: row[4],
-      fechaCreacion: row[5],
-      fechaResolucion: row[6],
-      nombreResidente: row[7],
-      apellidoResidente: row[8],
-      departamento: row[9]
+      nombreResidente: row[5],
+      apellidoResidente: row[6],
+      departamento: row[7]
     }));
-    
+   
     return reclamos;
   } catch (error) {
     console.error("Error al obtener reclamos:", error.message);
@@ -1022,6 +1023,43 @@ export function limpiarCodigosQRExpirados() {
     };
   } catch (error) {
     console.error("Error al limpiar códigos QR expirados:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+export function updateReclamoStatus(idReclamo: number, nuevoEstado: string) {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      UPDATE reclamos 
+      SET status = ? 
+      WHERE ID_reclamo = ?
+    `;
+    
+    db.query(query, [nuevoEstado, idReclamo]);
+    
+    // Verificar que se actualizó correctamente
+    const verificarQuery = `
+      SELECT * FROM reclamos WHERE ID_reclamo = ?
+    `;
+    
+    const result = db.query(verificarQuery, [idReclamo]);
+    
+    if (result.length === 0) {
+      throw new Error("Reclamo no encontrado");
+    }
+    
+    return {
+      id: result[0][0],
+      idUsuario: result[0][1],
+      idPack: result[0][2],
+      descripcion: result[0][3],
+      status: result[0][4]
+    };
+  } catch (error) {
+    console.error("Error al actualizar estado del reclamo:", error.message);
     throw error;
   } finally {
     db.close();

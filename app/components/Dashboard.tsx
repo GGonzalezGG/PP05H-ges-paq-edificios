@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Clock, AlertTriangle, CheckCircle, XCircle, Grid, List } from 'lucide-react';
 import PackageDisplay, { PackageData } from './PackageDisplay';
+import StatusSelector from './StatusSelector';
 
 // Tipos para los datos del dashboard
 interface DashboardItem {
@@ -47,6 +48,7 @@ interface DashboardProps {
   showPackageDetails?: boolean;
   onRetirePackage?: (packageId: number) => void;
   onComplaintPackage?: (packageId: number) => void;
+  onStatusChange?: (itemId: number, newStatus: string) => Promise<void>;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -55,7 +57,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   viewMode = 'table',
   showPackageDetails = false,
   onRetirePackage,
-  onComplaintPackage
+  onComplaintPackage,
+  onStatusChange
 }) => {
   const [items, setItems] = useState<DashboardItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +173,49 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  // Agregar función para cambiar estado de reclamos
+const handleStatusChange = async (itemId: number, newStatus: string) => {
+  if (onStatusChange) {
+    await onStatusChange(itemId, newStatus);
+    // Refrescar datos después del cambio
+    await fetchData();
+  } else {
+    // Implementación por defecto si no se pasa la función
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      const response = await fetch(`http://localhost:8000/api/reclamos/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refrescar datos después del cambio exitoso
+        await fetchData();
+      } else {
+        throw new Error(data.error || 'Error al actualizar estado');
+      }
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+      // Aquí podrías mostrar una notificación de error al usuario
+    }
+  }
+};
+
   // Función para manejar reclamos
   const handleComplaintPackage = (packageId: number) => {
     if (onComplaintPackage) {
@@ -268,7 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Estadísticas */}
+      {/* Estadísticas - VERSIÓN ACTUALIZADA PARA RECLAMOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
@@ -284,31 +330,61 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex items-center">
             <Clock className="h-8 w-8 text-yellow-600 mr-3" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Pendientes</p>
+              <p className="text-sm font-medium text-gray-600">
+                {config.itemType === 'reclamo' ? 'Pendientes' : 'Pendientes'}
+              </p>
               <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center">
-            <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Completados</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.delivered}</p>
+        {config.itemType === 'reclamo' ? (
+          // Estadísticas específicas para reclamos
+          <>
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center">
+                <AlertTriangle className="h-8 w-8 text-blue-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">En Revisión</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.processing}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center">
-            <AlertTriangle className="h-8 w-8 text-red-600 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Vencidos</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.expired}</p>
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center">
+                <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Completados</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.delivered}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          // Estadísticas para paquetes (mantener original)
+          <>
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center">
+                <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Completados</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.delivered}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-center">
+                <AlertTriangle className="h-8 w-8 text-red-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Vencidos</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.expired}</p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Contenido principal */}
@@ -380,7 +456,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </td>
                       {config.columns.map((column) => (
                         <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {column.render 
+                          {column.key === 'acciones' && config.itemType === 'reclamo' ? (
+                            <StatusSelector
+                              currentStatus={item.estado || 'pendiente'}
+                              itemId={item.id}
+                              onStatusChange={handleStatusChange}
+                            />
+                          ) : column.render 
                             ? column.render(item)
                             : item[column.key as keyof DashboardItem] || 'N/A'
                           }

@@ -12,6 +12,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Dashboard from '../components/Dashboard';
 import { paquetesConfig, reclamosConfig } from '../lib/dashboardConfigs';
 import QRScannerPage from "../components/QRScannerPage";
+import StatusSelector from "../components/StatusSelector";
 
 interface Usuario {
   id: number;
@@ -88,6 +89,44 @@ export default function AdminPage() {
   const handleComplaintPackage = (packageId: number) => {
     // Redirigir a página de reclamos o abrir modal
     window.location.href = `/reclamos/nuevo?paquete=${packageId}`;
+  };
+
+ const handleStatusChange = async (itemId: number, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      const response = await fetch(`http://localhost:8000/api/reclamos/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Error al actualizar estado');
+      }
+
+      // Mostrar notificación de éxito (opcional)
+      console.log('Estado actualizado correctamente');
+      
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+      // Mostrar notificación de error al usuario
+      alert('Error al actualizar el estado del reclamo');
+      throw error; // Re-lanzar para que el componente maneje el error
+    }
   };
 
   useEffect(() => {
@@ -418,13 +457,11 @@ export default function AdminPage() {
         {/* Dashboard */}
         {activeTab == "reclamos" && (
           <div className="container mx-auto px-4 py-6">
-      <Dashboard 
+      <Dashboard
         config={reclamosConfig}
-        viewMode="table" // o "cards"
-        showPackageDetails={true} // Habilita vista de tarjetas
-        onRetirePackage={handleRetirePackage} // Callback para retiros
-        onComplaintPackage={handleComplaintPackage} // Callback para reclamos
-        refreshInterval={30000*2*5}
+        refreshInterval={30000}
+        viewMode="table"
+        onStatusChange={handleStatusChange}
       />
     </div>
         )}
