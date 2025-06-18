@@ -1065,3 +1065,32 @@ export function updateReclamoStatus(idReclamo: number, nuevoEstado: string) {
     db.close();
   }
 }
+
+// Función para crear un reclamo
+export function crearReclamo(idUsuario: number, idPack: number, descripcion: string) {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      INSERT INTO reclamos (ID_usuario, ID_pack, descripción, status)
+      VALUES (?, ?, ?, 'pendiente')
+    `;
+    
+    const result = db.query(query, [idUsuario, idPack, descripcion]);
+    
+    // Obtener el ID del reclamo recién creado
+    const reclamoId = db.lastInsertRowId;
+    
+    return {
+      id: reclamoId,
+      idUsuario,
+      idPack,
+      descripcion,
+      status: 'pendiente'
+    };
+  } catch (error) {
+    console.error("Error al crear reclamo:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}

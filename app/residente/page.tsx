@@ -6,6 +6,7 @@ import { PackageData } from '../components/PackageDisplay';
 import { useRouter } from "next/navigation";
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
 import QRCode from 'qrcode';
+import ComplaintModal from '../components/ComplainModal';
 
 // Importación dinámica del componente PackageDisplay sin SSR
 const PackageDisplay = dynamic(
@@ -181,6 +182,7 @@ const ResidentePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [qrModal, setQrModal] = useState({ isOpen: false, qrData: null, packageData: null });
   const router = useRouter();
+  const [complaintModal, setComplaintModal] = useState({ isOpen: false, packageData: null });
 
   // Función para obtener paquetes desde la API
   const fetchPackages = async () => {
@@ -275,9 +277,49 @@ const ResidentePage = () => {
   };
 
   const handleComplaint = (packageId: number) => {
-    console.log(`Dejando reclamo para paquete ID: ${packageId}`);
-    alert(`Funcionalidad de reclamo para paquete ${packageId} - Aquí implementarías la lógica de reclamos`);
-  };
+  const packageInfo = packageData.find(pkg => pkg.paquete.ID_pack === packageId);
+  setComplaintModal({
+    isOpen: true,
+    packageData: packageInfo
+  });
+};
+
+const handleSubmitComplaint = async (complaintData: { packageId: number; description: string }) => {
+  const toastId = showLoadingToast("Enviando reclamo...");
+  
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('No hay sesión activa');
+    }
+
+    const response = await fetch('http://localhost:8000/api/resident/complaint', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        packageId: complaintData.packageId,
+        description: complaintData.description
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      hideLoadingToast(toastId);
+      alert('Reclamo enviado exitosamente. Te contactaremos pronto.');
+    } else {
+      hideLoadingToast(toastId);
+      throw new Error(result.error || 'Error al enviar el reclamo');
+    }
+  } catch (error) {
+    hideLoadingToast(toastId);
+    console.error('Error al enviar reclamo:', error);
+    throw error; // Re-lanzar el error para que el modal lo maneje
+  }
+};
 
   // Separar paquetes por estado
   const pendingPackages = packageData.filter(pkg => !pkg.paquete.fecha_retiro);
@@ -416,6 +458,14 @@ const ResidentePage = () => {
             </div>
           </div>
         </div>
+
+        {/* Complaint Modal */}
+          <ComplaintModal
+            isOpen={complaintModal.isOpen}
+            onClose={() => setComplaintModal({ isOpen: false, packageData: null })}
+            packageData={complaintModal.packageData}
+            onSubmit={handleSubmitComplaint}
+          />
 
         {/* Refresh Button */}
         <div className="mb-6">

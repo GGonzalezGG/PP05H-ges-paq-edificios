@@ -19,7 +19,8 @@ import {
   generarCodigoQRRetiro,
   procesarEscaneoQR,
   limpiarCodigosQRExpirados,
-  updateReclamoStatus
+  updateReclamoStatus,
+  crearReclamo
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -1454,6 +1455,92 @@ if (url.pathname.startsWith("/api/reclamos/") && req.method === "PUT") {
     return new Response(JSON.stringify({
       success: false,
       error: "Error al actualizar estado del reclamo",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Crear reclamo de residente
+if (url.pathname === "/api/resident/complaint" && req.method === "POST") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const tokenData = verifyToken(token);
+    const userId = tokenData.userId;
+    
+    const body = await req.json();
+    const { packageId, description } = body;
+    
+    // Validaciones
+    if (!packageId || !description) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Faltan datos requeridos"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    if (description.trim().length < 10) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "La descripción debe tener al menos 10 caracteres"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    console.log(`Creando reclamo para usuario ${userId}, paquete ${packageId}`);
+    
+    // Importar la función (agregar a la línea de imports al inicio del archivo)
+    const reclamo = await crearReclamo(userId, packageId, description.trim());
+    
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Reclamo creado exitosamente",
+      data: reclamo
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 201
+    });
+    
+  } catch (error) {
+    console.error("Error al crear reclamo:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al procesar el reclamo",
       details: error instanceof Error ? error.message : String(error)
     }), {
       headers: {
