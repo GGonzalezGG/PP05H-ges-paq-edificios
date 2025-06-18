@@ -47,7 +47,7 @@ CREATE TABLE Notificaciones (
 -- usuarios prueba
 INSERT INTO Usuarios (ID_usuario, username, password, N_departamento, admin, rut, nombre, apellido, correo, telefono, reitro_compartido)
 VALUES
-  (1, 'adminuser', 'adminpass', 'Depto A', 1, 12345678, 'Ana', 'Pérez', 'ana@example.com', '987654321', 0),
+  (1, 'adminuser', 'adminpass', 'Depto A', 1, 12345678, 'Ana', 'Pérez', 'xkiritox1995@gmail.com', '987654321', 0),
   (2, 'jdoe', 'password1', 'Depto B', 0, 23456789, 'Juan', 'Doe', 'juan@example.com', '987654322', 1),
   (3, 'mlopez', 'password2', 'Depto A', 0, 34567890, 'María', 'López', 'maria@example.com', '987654323', 0),
   (4, 'csoto', 'password3', 'Depto C', 0, 45678901, 'Carlos', 'Soto', 'carlos@example.com', '987654324', 0);

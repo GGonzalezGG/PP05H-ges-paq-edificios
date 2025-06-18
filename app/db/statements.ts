@@ -86,6 +86,18 @@ export function authenticateUser(username: string, password: string) {
   }
 }
 
+export function deleteUser(id: string) {
+  const db = new DB(dbPath);
+  try {
+    const result = db.query("DELETE FROM Usuarios WHERE ID_usuario = ?", [Number(id)]);
+    return true; // si no hay error, se asume éxito
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error.message);
+    return false;
+  } finally {
+    db.close();
+  }
+}
 // Nueva función para obtener usuarios por departamento
 export function getUsersByDepartamento(departamento: string) {
   const db = new DB(dbPath);
@@ -266,7 +278,7 @@ export function getUsuarioContactInfo(idUsuario: number) {
   const db = new DB(dbPath);
   try {
     const query = `
-      SELECT nombre, apellido, telefono
+      SELECT nombre, apellido, telefono, correo
       FROM Usuarios
       WHERE ID_usuario = ?
     `;
@@ -286,7 +298,8 @@ export function getUsuarioContactInfo(idUsuario: number) {
       data: {
         nombre: userData[0][0] as string,
         apellido: userData[0][1] as string,
-        telefono: userData[0][2] as string
+        telefono: userData[0][2] as string,
+        correo: userData[0][3] as string
       }
     };
   } catch (error) {

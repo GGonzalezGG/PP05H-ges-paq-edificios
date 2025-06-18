@@ -16,6 +16,8 @@ import {
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
 import { enviarMensajeTemplate, enviarMensajeDetallado } from "./app/services/whatsappService.ts";
+import { sendEmail } from "./app/utils/sendEmail.ts";
+import { deleteUser } from "./app/db/statements.ts";
 
 
 async function sleep(ms: number): Promise<void> {
@@ -167,7 +169,35 @@ async function handler(req: Request): Promise<Response> {
       });
     }
   }
-  
+// Ruta para eliminar un usuario
+if (url.pathname.startsWith("/api/users/") && req.method === "DELETE") {
+  console.log("Solicitud DELETE recibida en Deno:", url.pathname);
+  try {
+    const userId = url.pathname.split("/").pop(); // obtiene el ID
+    console.log("ID recibido para eliminar:", userId);
+    if (!userId) throw new Error("ID de usuario no proporcionado");
+
+    const deleted = await deleteUser(userId);
+
+    if (deleted) {
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 200,
+      });
+    } else {
+      return new Response(JSON.stringify({ success: false, error: "Usuario no se puede eliminar ya que tiene dependencias" }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 404,
+      });
+    }
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+      status: 500,
+    });
+  }
+}
   // NUEVO ENDPOINT: Obtener usuarios por departamento
   if (url.pathname === "/api/users/departamento" && req.method === "GET") {
     try {
@@ -318,6 +348,27 @@ async function handler(req: Request): Promise<Response> {
         whatsappMessage = "El usuario no tiene número de teléfono registrado";
       }
       
+      if (contactoUsuario.success && contactoUsuario.data.correo) {
+        try {
+          console.log("Llamando a sendEmail con:", contactoUsuario.data.correo);
+          const nombreCompleto = `${contactoUsuario.data.nombre} ${contactoUsuario.data.apellido}`;
+          // Enviar mensaje template
+          await sendEmail({
+            from: "onboarding@resend.dev",
+            to: contactoUsuario.data.correo, // Se usa la variable dinámica
+            subject: "Recepción de paquete en conserjería 📦",
+            html: `
+              <h2>¡Tu paquete ha llegado!</h2>
+              <p>Hola ${nombreCompleto}, hemos recibido tu paquete y se encuentra en conserjería.</p>
+              <p>Por favor ven a retirarlo apenas puedas</p>
+              <p><strong>Estado:</strong> Pendiente</p>
+            `,
+          });
+        } catch (error) {
+          console.error("Error al enviar correo:", error);
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
         message: "Paquete y notificación registrados correctamente",
