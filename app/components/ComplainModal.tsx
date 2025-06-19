@@ -70,8 +70,8 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Presentar Reclamo</h3>
           <button
@@ -84,7 +84,7 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
             </svg>
           </button>
         </div>
-        
+
         {/* Información del paquete */}
         <div className="mb-4 p-4 bg-gray-50 rounded-lg">
           <h4 className="font-medium text-gray-900 mb-2">Información del Paquete</h4>
@@ -92,7 +92,7 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
             <p><strong>ID:</strong> #{packageData?.paquete?.ID_pack}</p>
             <p><strong>Ubicación:</strong> {packageData?.paquete?.ubicacion}</p>
             <p><strong>Fecha de entrega:</strong> {
-              packageData?.paquete?.fecha_entrega 
+              packageData?.paquete?.fecha_entrega
                 ? new Date(packageData.paquete.fecha_entrega).toLocaleDateString()
                 : 'N/A'
             }</p>
@@ -104,6 +104,7 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
           </div>
         </div>
 
+        {/* Formulario de reclamo */}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
@@ -115,7 +116,7 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe detalladamente tu reclamo sobre este paquete..."
               rows={4}
-              className="w-full text-gray-500 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="w-full text-gray-600 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
               disabled={isSubmitting}
               maxLength={500}
             />
@@ -142,11 +143,8 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div className="ml-2">
-                <p className="text-sm text-blue-800">
-                  <strong>Nota:</strong> Tu reclamo será revisado por el equipo de administración. 
-                  Te contactaremos dentro de las próximas 24-48 horas.
-                </p>
+              <div className="ml-2 text-sm text-blue-800">
+                <strong>Nota:</strong> Tu reclamo será revisado por el equipo de administración. Te contactaremos dentro de las próximas 24-48 horas.
               </div>
             </div>
           </div>
@@ -179,6 +177,7 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
       </div>
     </div>
   );
+
 };
 
 export default ComplaintModal;
