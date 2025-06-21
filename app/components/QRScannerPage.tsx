@@ -6,18 +6,60 @@ import { showLoadingToast, hideLoadingToast } from './toastLoading';
 
 // Componente Modal para mostrar resultado del escaneo
 const ScanResultModal = ({ isOpen, onClose, scanResult, isSuccess }) => {
-  if (!isOpen) return null;
+  const [isVisible, setIsVisible] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+      // Pequeño delay para que el backdrop aparezca primero
+      setTimeout(() => {
+        setIsAnimating(true);
+      }, 50);
+    } else {
+      setIsAnimating(false);
+      // Esperar a que termine la animación antes de ocultar
+      setTimeout(() => {
+        setIsVisible(false);
+      }, 300);
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    setIsAnimating(false);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
+
+  if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+    <div 
+      className={`fixed inset-0 flex items-center justify-center z-50 transition-all duration-300 ${
+        isAnimating 
+          ? 'backdrop-blur-sm' 
+          : 'backdrop-blur-none'
+      }`}
+      onClick={handleClose}
+    >
+      <div 
+        className={`bg-white rounded-lg p-6 max-w-lg w-full mx-4 shadow-2xl transition-all duration-300 ease-out transform ${
+          isAnimating 
+            ? 'scale-100 opacity-100 translate-y-0' 
+            : 'scale-95 opacity-0 translate-y-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-4">
-          <h3 className={`text-lg font-semibold ${isSuccess ? 'text-green-900' : 'text-red-900'}`}>
+          <h3 className={`text-lg font-semibold transition-colors duration-200 ${
+            isSuccess ? 'text-green-900' : 'text-red-900'
+          }`}>
             {isSuccess ? 'Paquete Retirado Exitosamente' : 'Error en el Escaneo'}
           </h3>
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors duration-200 hover:bg-gray-100 rounded-full p-1"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -27,12 +69,18 @@ const ScanResultModal = ({ isOpen, onClose, scanResult, isSuccess }) => {
         
         {isSuccess ? (
           <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className={`bg-green-50 border border-green-200 rounded-lg p-4 transition-all duration-500 ${
+              isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+            }`}>
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
+                  <div className={`transition-all duration-700 ${
+                    isAnimating ? 'scale-100 rotate-0' : 'scale-0 rotate-180'
+                  }`}>
+                    <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                 </div>
                 <div className="ml-3">
                   <h4 className="text-sm font-medium text-green-800">
@@ -42,32 +90,46 @@ const ScanResultModal = ({ isOpen, onClose, scanResult, isSuccess }) => {
               </div>
             </div>
             
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className={`bg-gray-50 rounded-lg p-4 transition-all duration-700 delay-200 ${
+              isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}>
               <h4 className="font-medium text-gray-900 mb-3">Información del Paquete:</h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
+                <div className={`transition-all duration-500 delay-300 ${
+                  isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+                }`}>
                   <span className="font-medium text-gray-600">Paquete #:</span>
                   <p className="text-gray-900">{scanResult?.ID_pack}</p>
                 </div>
-                <div>
+                <div className={`transition-all duration-500 delay-400 ${
+                  isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                }`}>
                   <span className="font-medium text-gray-600">Destinatario:</span>
                   <p className="text-gray-900">{scanResult?.destinatario}</p>
                 </div>
-                <div>
+                <div className={`transition-all duration-500 delay-500 ${
+                  isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+                }`}>
                   <span className="font-medium text-gray-600">Departamento:</span>
                   <p className="text-gray-900">{scanResult?.departamento}</p>
                 </div>
-                <div>
+                <div className={`transition-all duration-500 delay-600 ${
+                  isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                }`}>
                   <span className="font-medium text-gray-600">Ubicación:</span>
                   <p className="text-gray-900">{scanResult?.ubicacion}</p>
                 </div>
-                <div>
+                <div className={`transition-all duration-500 delay-700 ${
+                  isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+                }`}>
                   <span className="font-medium text-gray-600">Fecha Entrega:</span>
                   <p className="text-gray-900">
                     {scanResult?.fechaEntrega ? new Date(scanResult.fechaEntrega).toLocaleString() : 'N/A'}
                   </p>
                 </div>
-                <div>
+                <div className={`transition-all duration-500 delay-800 ${
+                  isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                }`}>
                   <span className="font-medium text-gray-600">Retirado por:</span>
                   <p className="text-gray-900">{scanResult?.userRetirador}</p>
                 </div>
@@ -75,12 +137,18 @@ const ScanResultModal = ({ isOpen, onClose, scanResult, isSuccess }) => {
             </div>
           </div>
         ) : (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className={`bg-red-50 border border-red-200 rounded-lg p-4 transition-all duration-500 ${
+            isAnimating ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+          }`}>
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
+                <div className={`transition-all duration-700 ${
+                  isAnimating ? 'scale-100 rotate-0' : 'scale-0 rotate-180'
+                }`}>
+                  <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
               </div>
               <div className="ml-3">
                 <h4 className="text-sm font-medium text-red-800">Error al procesar el código QR</h4>
@@ -90,13 +158,15 @@ const ScanResultModal = ({ isOpen, onClose, scanResult, isSuccess }) => {
           </div>
         )}
         
-        <div className="mt-6 flex justify-end">
+        <div className={`mt-6 flex justify-end transition-all duration-500 delay-900 ${
+          isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}>
           <button
-            onClick={onClose}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
+            onClick={handleClose}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 hover:scale-105 active:scale-95 ${
               isSuccess 
-                ? 'text-green-700 bg-green-100 hover:bg-green-200' 
-                : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+                ? 'text-green-700 bg-green-100 hover:bg-green-200 hover:shadow-md' 
+                : 'text-gray-700 bg-gray-100 hover:bg-gray-200 hover:shadow-md'
             }`}
           >
             Cerrar
