@@ -22,6 +22,7 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
   const [qrImageUrl, setQrImageUrl] = useState<string>('');
   const [generating, setGenerating] = useState(false);
   const [showQRText, setShowQRText] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Generar imagen QR cuando se abre el modal
   useEffect(() => {
@@ -49,12 +50,18 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
     generateQRImage();
   }, [isOpen, qrData]);
 
-  // Limpiar imagen cuando se cierra el modal
+  // Manejar animaciones de entrada y salida
   useEffect(() => {
-    if (!isOpen) {
-      setQrImageUrl('');
-      setGenerating(false);
-      setShowQRText(false);
+    if (isOpen) {
+      setIsAnimating(true);
+    } else {
+      setIsAnimating(false);
+      // Limpiar estado cuando se cierra
+      setTimeout(() => {
+        setQrImageUrl('');
+        setGenerating(false);
+        setShowQRText(false);
+      }, 300); // Esperar a que termine la animación de salida
     }
   }, [isOpen]);
 
@@ -71,16 +78,36 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
     }
   };
 
-  if (!isOpen) return null;
+  // Manejar el cierre con animación
+  const handleClose = () => {
+    setIsAnimating(false);
+    setTimeout(() => {
+      onClose();
+    }, 200);
+  };
+
+  if (!isOpen && !isAnimating) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div 
+      className={`fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 transition-all duration-300 ease-out ${
+        isOpen && isAnimating ? 'opacity-100' : 'opacity-0'
+      }`}
+      onClick={handleClose}
+    >
+      <div 
+        className={`bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl transition-all duration-300 ease-out transform ${
+          isOpen && isAnimating 
+            ? 'scale-100 translate-y-0 opacity-100' 
+            : 'scale-95 translate-y-4 opacity-0'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Código QR de Retiro</h3>
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors duration-200 hover:scale-110 transform"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -165,8 +192,8 @@ const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
             </a>
           )}
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+            onClick={handleClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-all duration-200 hover:scale-105 transform"
           >
             Cerrar
           </button>
