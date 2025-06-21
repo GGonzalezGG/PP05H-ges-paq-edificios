@@ -268,49 +268,60 @@ const handleStatusChange = async (itemId: number, newStatus: string) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      {/* Header - Diseño responsive mejorado */}
+      <div className="space-y-4">
+        {/* Título */}
         <h1 className="text-2xl font-bold text-gray-800">{config.title}</h1>
-        <div className="flex items-center space-x-4">
-          {/* View Mode Toggle */}
+        
+        {/* Controles - Reorganización responsive */}
+        <div className="flex flex-col space-y-3 sm:space-y-0">
+          {/* Primera fila: Toggle de vista (solo si es necesario) */}
           {config.itemType === 'paquete' && showPackageDetails && (
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setCurrentViewMode('table')}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  currentViewMode === 'table'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <List className="w-4 h-4 inline mr-1" />
-                Tabla
-              </button>
-              <button
-                onClick={() => setCurrentViewMode('cards')}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  currentViewMode === 'cards'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Grid className="w-4 h-4 inline mr-1" />
-                Tarjetas
-              </button>
+            <div className="flex justify-center sm:justify-start">
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setCurrentViewMode('table')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    currentViewMode === 'table'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <List className="w-4 h-4 inline mr-1" />
+                  Tabla
+                </button>
+                <button
+                  onClick={() => setCurrentViewMode('cards')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    currentViewMode === 'cards'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Grid className="w-4 h-4 inline mr-1" />
+                  Tarjetas
+                </button>
+              </div>
             </div>
           )}
           
-          {lastUpdate && (
-            <span className="text-sm text-gray-500">
-              Última actualización: {formatDate(lastUpdate.toISOString())}
-            </span>
-          )}
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            Actualizar
-          </button>
+          {/* Segunda fila: Info y botón de actualizar */}
+          <div className="flex flex-col space-y-2 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
+            {/* Última actualización */}
+            {lastUpdate && (
+              <span className="text-sm text-gray-500 text-center sm:text-left">
+                Última actualización: {formatDate(lastUpdate.toISOString())}
+              </span>
+            )}
+            
+            {/* Botón actualizar */}
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Actualizar
+            </button>
+          </div>
         </div>
       </div>
 
