@@ -43,6 +43,19 @@ CREATE TABLE Notificaciones (
   FOREIGN KEY (ID_pack) REFERENCES Paquetes(ID_pack)
 );
 
+CREATE TABLE IF NOT EXISTS CodigosQR (
+  ID_qr INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo_qr TEXT UNIQUE NOT NULL,
+  ID_paquete INTEGER NOT NULL,
+  ID_residente INTEGER NOT NULL,
+  fecha_generacion TEXT NOT NULL,
+  fecha_expiracion TEXT NOT NULL,
+  fecha_uso TEXT,
+  estado TEXT DEFAULT 'activo' CHECK(estado IN ('activo', 'utilizado', 'expirado')),
+  FOREIGN KEY (ID_paquete) REFERENCES Paquetes(ID_pack),
+  FOREIGN KEY (ID_residente) REFERENCES Usuarios(ID_usuario)
+);
+
 -- insertar valores de prueba
 -- usuarios prueba
 INSERT INTO Usuarios (ID_usuario, username, password, N_departamento, admin, rut, nombre, apellido, correo, telefono, reitro_compartido)

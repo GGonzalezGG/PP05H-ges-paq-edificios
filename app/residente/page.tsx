@@ -5,7 +5,8 @@ import dynamic from 'next/dynamic';
 import { PackageData } from '../components/PackageDisplay';
 import { useRouter } from "next/navigation";
 import { showLoadingToast, hideLoadingToast } from '../components/toastLoading';
-
+import QRCode from 'qrcode';
+import ComplaintModal from '../components/ComplainModal';
 
 // Importación dinámica del componente PackageDisplay sin SSR
 const PackageDisplay = dynamic(
@@ -16,11 +17,199 @@ const PackageDisplay = dynamic(
   }
 );
 
+// Componente Modal para mostrar QR
+const QRModal = ({ isOpen, onClose, qrData, packageData }) => {
+  const [qrImageUrl, setQrImageUrl] = useState<string>('');
+  const [generating, setGenerating] = useState(false);
+  const [showQRText, setShowQRText] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Generar imagen QR cuando se abre el modal
+  useEffect(() => {
+    const generateQRImage = async () => {
+      if (isOpen && qrData?.codigoQR) {
+        setGenerating(true);
+        try {
+          const qrImageDataUrl = await QRCode.toDataURL(qrData.codigoQR, {
+            width: 200,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          });
+          setQrImageUrl(qrImageDataUrl);
+        } catch (error) {
+          console.error('Error generando QR:', error);
+        } finally {
+          setGenerating(false);
+        }
+      }
+    };
+
+    generateQRImage();
+  }, [isOpen, qrData]);
+
+  // Manejar animaciones de entrada y salida
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+    } else {
+      setIsAnimating(false);
+      // Limpiar estado cuando se cierra
+      setTimeout(() => {
+        setQrImageUrl('');
+        setGenerating(false);
+        setShowQRText(false);
+      }, 300); // Esperar a que termine la animación de salida
+    }
+  }, [isOpen]);
+
+  // Función para copiar el código QR al portapapeles
+  const copyQRCode = async () => {
+    if (qrData?.codigoQR) {
+      try {
+        await navigator.clipboard.writeText(qrData.codigoQR);
+        alert('Código QR copiado al portapapeles');
+      } catch (error) {
+        console.error('Error al copiar:', error);
+        alert('No se pudo copiar el código');
+      }
+    }
+  };
+
+  // Manejar el cierre con animación
+  const handleClose = () => {
+    setIsAnimating(false);
+    setTimeout(() => {
+      onClose();
+    }, 200);
+  };
+
+  if (!isOpen && !isAnimating) return null;
+
+  return (
+    <div 
+      className={`fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 transition-all duration-300 ease-out ${
+        isOpen && isAnimating ? 'opacity-100' : 'opacity-0'
+      }`}
+      onClick={handleClose}
+    >
+      <div 
+        className={`bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl transition-all duration-300 ease-out transform ${
+          isOpen && isAnimating 
+            ? 'scale-100 translate-y-0 opacity-100' 
+            : 'scale-95 translate-y-4 opacity-0'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Código QR de Retiro</h3>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors duration-200 hover:scale-110 transform"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="text-center">
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+            {generating ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Generando QR...</span>
+              </div>
+            ) : qrImageUrl ? (
+              <div className="flex flex-col items-center">
+                <img 
+                  src={qrImageUrl} 
+                  alt="Código QR" 
+                  className="mb-2 border-2 border-gray-300 rounded"
+                />
+                <p className="text-xs text-gray-500 mb-3">
+                  Código QR único para retiro
+                </p>
+                
+                {/* Botón para mostrar/ocultar el texto del código QR */}
+                <button
+                  onClick={() => setShowQRText(!showQRText)}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline mb-2"
+                >
+                  {showQRText ? 'Ocultar código' : 'Ver código como texto'}
+                </button>
+                
+                {/* Mostrar el texto del código QR */}
+                {showQRText && qrData?.codigoQR && (
+                  <div className="mt-3 p-3 bg-white border-2 border-gray-200 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-2 font-medium">Código QR:</p>
+                    <div className="relative">
+                      <code className="text-xs font-mono text-gray-800 break-all bg-gray-50 p-2 rounded block">
+                        {qrData.codigoQR}
+                      </code>
+                      <button
+                        onClick={copyQRCode}
+                        className="absolute top-1 right-1 p-1 text-gray-500 hover:text-gray-700 bg-white rounded border"
+                        title="Copiar código"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-4xl font-mono text-center p-4 bg-white border-2 border-dashed border-gray-300 rounded">
+                {qrData?.codigoQR || 'QR CODE'}
+              </div>
+            )}
+          </div>
+          
+          <div className="text-sm text-gray-600 mb-4">
+            <p><strong>Paquete:</strong> #{packageData?.paquete?.ID_pack}</p>
+            <p><strong>Ubicación:</strong> {packageData?.paquete?.ubicacion}</p>
+            <p><strong>Expira:</strong> {qrData?.fechaExpiracion ? new Date(qrData.fechaExpiracion).toLocaleString() : 'N/A'}</p>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+            <p><strong>Instrucciones:</strong></p>
+            <p>Muestra este código al conserje o administrador para retirar tu paquete. El código expira en 24 horas.</p>
+          </div>
+        </div>
+        
+        <div className="mt-6 flex justify-end space-x-3">
+          {qrImageUrl && (
+            <a
+              href={qrImageUrl}
+              download={`QR-Paquete-${packageData?.paquete?.ID_pack}.png`}
+              className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md"
+            >
+              Descargar QR
+            </a>
+          )}
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-all duration-200 hover:scale-105 transform"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ResidentePage = () => {
   const [packageData, setPackageData] = useState<PackageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [qrModal, setQrModal] = useState({ isOpen: false, qrData: null, packageData: null });
   const router = useRouter();
+  const [complaintModal, setComplaintModal] = useState({ isOpen: false, packageData: null });
 
   // Función para obtener paquetes desde la API
   const fetchPackages = async () => {
@@ -69,16 +258,95 @@ const ResidentePage = () => {
     fetchPackages();
   }, []);
 
-  // Handlers para las acciones (placeholder por ahora)
-  const handleRetirePackage = (packageId: number) => {
-    console.log(`Intentando retirar paquete ID: ${packageId}`);
-    alert(`Funcionalidad de retiro para paquete ${packageId} - Aquí implementarías la lógica de retiro`);
+  // Función para generar código QR
+  const handleRetirePackage = async (packageId: number) => {
+    const toastId = showLoadingToast("Generando código QR...");
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('No hay sesión activa. Por favor, inicia sesión.');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/api/resident/generate-qr', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ paqueteId: packageId })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        hideLoadingToast(toastId);
+        
+        // Encontrar los datos del paquete
+        const packageInfo = packageData.find(pkg => pkg.paquete.ID_pack === packageId);
+        
+        // Mostrar modal con QR
+        setQrModal({
+          isOpen: true,
+          qrData: result.data,
+          packageData: packageInfo
+        });
+      } else {
+        hideLoadingToast(toastId);
+        alert(`Error al generar código QR: ${result.error}`);
+      }
+    } catch (error) {
+      hideLoadingToast(toastId);
+      console.error('Error al generar código QR:', error);
+      alert('Error de conexión al generar código QR');
+    }
   };
 
   const handleComplaint = (packageId: number) => {
-    console.log(`Dejando reclamo para paquete ID: ${packageId}`);
-    alert(`Funcionalidad de reclamo para paquete ${packageId} - Aquí implementarías la lógica de reclamos`);
-  };
+  const packageInfo = packageData.find(pkg => pkg.paquete.ID_pack === packageId);
+  setComplaintModal({
+    isOpen: true,
+    packageData: packageInfo
+  });
+};
+
+const handleSubmitComplaint = async (complaintData: { packageId: number; description: string }) => {
+  const toastId = showLoadingToast("Enviando reclamo...");
+  
+  try {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('No hay sesión activa');
+    }
+
+    const response = await fetch('http://localhost:8000/api/resident/complaint', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        packageId: complaintData.packageId,
+        description: complaintData.description
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      hideLoadingToast(toastId);
+      alert('Reclamo enviado exitosamente. Te contactaremos pronto.');
+    } else {
+      hideLoadingToast(toastId);
+      throw new Error(result.error || 'Error al enviar el reclamo');
+    }
+  } catch (error) {
+    hideLoadingToast(toastId);
+    console.error('Error al enviar reclamo:', error);
+    throw error; // Re-lanzar el error para que el modal lo maneje
+  }
+};
 
   // Separar paquetes por estado
   const pendingPackages = packageData.filter(pkg => !pkg.paquete.fecha_retiro);
@@ -141,35 +409,39 @@ const ResidentePage = () => {
     );
   }
 
-    const handleLogout = () => {
-      const toastId = showLoadingToast("Cerrando sesión...");
-      
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userData");
-      
-      setTimeout(() => {
-        hideLoadingToast(toastId);
-        router.push("/login");
-      }, 500);
-    };
+  const handleLogout = () => {
+    const toastId = showLoadingToast("Cerrando sesión...");
+    
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userData");
+    
+    setTimeout(() => {
+      hideLoadingToast(toastId);
+      router.push("/login");
+    }, 500);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Portal del Residente
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Gestiona tus paquetes y encomiendas
-          </p>
-          <button
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Portal del Residente
+              </h1>
+              <p className="mt-2 text-gray-600">
+                Gestiona tus paquetes y encomiendas
+              </p>
+            </div>
+            <button
               onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600 text-white text-sm px-5 py-1 rounded-md shadow-md transition"
+              className="bg-red-500 hover:bg-red-600 text-white text-sm px-5 py-2 rounded-md shadow-md transition"
             >
               Cerrar sesión
             </button>
+          </div>
         </div>
       </div>
 
@@ -213,6 +485,14 @@ const ResidentePage = () => {
             </div>
           </div>
         </div>
+
+        {/* Complaint Modal */}
+          <ComplaintModal
+            isOpen={complaintModal.isOpen}
+            onClose={() => setComplaintModal({ isOpen: false, packageData: null })}
+            packageData={complaintModal.packageData}
+            onSubmit={handleSubmitComplaint}
+          />
 
         {/* Refresh Button */}
         <div className="mb-6">
@@ -280,6 +560,14 @@ const ResidentePage = () => {
           </div>
         )}
       </div>
+
+      {/* QR Modal */}
+      <QRModal
+        isOpen={qrModal.isOpen}
+        onClose={() => setQrModal({ isOpen: false, qrData: null, packageData: null })}
+        qrData={qrModal.qrData}
+        packageData={qrModal.packageData}
+      />
     </div>
   );
 };

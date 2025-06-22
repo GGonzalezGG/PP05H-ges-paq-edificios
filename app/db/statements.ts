@@ -1,5 +1,6 @@
 // app/db/statements.ts
 import { DB } from "https://deno.land/x/sqlite/mod.ts";
+import { v4 } from "https://deno.land/std@0.81.0/uuid/mod.ts";
 // Ruta a tu archivo SQLite
 const dbPath = "./app/db/database.db";
 
@@ -86,18 +87,6 @@ export function authenticateUser(username: string, password: string) {
   }
 }
 
-export function deleteUser(id: string) {
-  const db = new DB(dbPath);
-  try {
-    const result = db.query("DELETE FROM Usuarios WHERE ID_usuario = ?", [Number(id)]);
-    return true; // si no hay error, se asume éxito
-  } catch (error) {
-    console.error("Error al eliminar usuario:", error.message);
-    return false;
-  } finally {
-    db.close();
-  }
-}
 // Nueva función para obtener usuarios por departamento
 export function getUsersByDepartamento(departamento: string) {
   const db = new DB(dbPath);
@@ -278,7 +267,7 @@ export function getUsuarioContactInfo(idUsuario: number) {
   const db = new DB(dbPath);
   try {
     const query = `
-      SELECT nombre, apellido, telefono, correo
+      SELECT nombre, apellido, telefono
       FROM Usuarios
       WHERE ID_usuario = ?
     `;
@@ -298,8 +287,7 @@ export function getUsuarioContactInfo(idUsuario: number) {
       data: {
         nombre: userData[0][0] as string,
         apellido: userData[0][1] as string,
-        telefono: userData[0][2] as string,
-        correo: userData[0][3] as string
+        telefono: userData[0][2] as string
       }
     };
   } catch (error) {
@@ -647,6 +635,460 @@ export function getPaquetesPorVencer(diasAntes: number = 3) {
     return paquetes;
   } catch (error) {
     console.error("Error al obtener paquetes por vencer:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para obtener paquetes pendientes (sin retirar)
+export function getPaquetesPendientes() {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      SELECT 
+        p.*,
+        u_dest.nombre as nombre_destinatario,
+        u_dest.apellido as apellido_destinatario,
+        u_dest.N_departamento as departamento_destinatario,
+        u_ret.nombre as nombre_retirador,
+        u_ret.apellido as apellido_retirador
+      FROM Paquetes p
+      LEFT JOIN Usuarios u_dest ON p.ID_userDestinatario = u_dest.ID_usuario
+      LEFT JOIN Usuarios u_ret ON p.ID_userRetirador = u_ret.ID_usuario
+      WHERE p.fecha_retiro IS NULL
+      ORDER BY p.fecha_entrega DESC
+    `;
+    
+    const rows = db.query(query);
+    
+    const paquetes = Array.from(rows, (row) => ({
+      id: row[0],
+      idDestinatario: row[1],
+      idRetirador: row[2],
+      fechaEntrega: row[3],
+      fechaLimite: row[4],
+      fechaRetiro: row[5],
+      ubicacion: row[6],
+      nombreDestinatario: row[7],
+      apellidoDestinatario: row[8],
+      departamento: row[9],
+      nombreRetirador: row[10],
+      apellidoRetirador: row[11]
+    }));
+    
+    return paquetes;
+  } catch (error) {
+    console.error("Error al obtener paquetes pendientes:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para obtener estadísticas de paquetes
+export function getEstadisticasPaquetes() {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN fecha_retiro IS NULL THEN 1 END) as pendientes,
+        COUNT(CASE WHEN fecha_retiro IS NOT NULL THEN 1 END) as retirados,
+        COUNT(CASE 
+          WHEN fecha_retiro IS NULL 
+          AND fecha_limite < datetime('now') 
+          THEN 1 
+        END) as vencidos
+      FROM Paquetes
+    `;
+    
+    const result = db.query(query);
+    const row = result[0];
+    
+    return {
+      total: row[0] || 0,
+      pendientes: row[1] || 0,
+      retirados: row[2] || 0,
+      vencidos: row[3] || 0
+    };
+  } catch (error) {
+    console.error("Error al obtener estadísticas de paquetes:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para retirar paquete
+export function retirarPaquete(packageId: number, userId: number) {
+  const db = new DB(dbPath);
+  try {
+    // Verificar que el paquete existe y no ha sido retirado
+    const checkQuery = `
+      SELECT ID_pack, fecha_retiro 
+      FROM Paquetes 
+      WHERE ID_pack = ?
+    `;
+    
+    const paqueteExistente = db.query(checkQuery, [packageId]);
+    
+    if (paqueteExistente.length === 0) {
+      throw new Error("Paquete no encontrado");
+    }
+    
+    if (paqueteExistente[0][1] !== null) {
+      throw new Error("El paquete ya ha sido retirado");
+    }
+
+    const fechaActual = new Date().toISOString();
+
+    // Actualizar el paquete con la información de retiro
+    const updateQuery = `
+      UPDATE Paquetes 
+      SET ID_userRetirador = ?, fecha_retiro = ?
+      WHERE ID_pack = ?
+    `;
+    
+    db.query(updateQuery, [userId, fechaActual , packageId]);
+    
+    // Obtener información actualizada del paquete
+    const infoQuery = `
+      SELECT 
+        p.*,
+        u_dest.nombre as nombre_destinatario,
+        u_dest.apellido as apellido_destinatario,
+        u_ret.nombre as nombre_retirador,
+        u_ret.apellido as apellido_retirador
+      FROM Paquetes p
+      LEFT JOIN Usuarios u_dest ON p.ID_userDestinatario = u_dest.ID_usuario
+      LEFT JOIN Usuarios u_ret ON p.ID_userRetirador = u_ret.ID_usuario
+      WHERE p.ID_pack = ?
+    `;
+    
+    const paqueteInfo = db.query(infoQuery, [packageId]);
+    
+    if (paqueteInfo.length > 0) {
+      const row = paqueteInfo[0];
+      return {
+        id: row[0],
+        idDestinatario: row[1],
+        idRetirador: row[2],
+        fechaEntrega: row[3],
+        fechaLimite: row[4],
+        fechaRetiro: row[5],
+        ubicacion: row[6],
+        nombreDestinatario: row[7],
+        apellidoDestinatario: row[8],
+        nombreRetirador: row[9],
+        apellidoRetirador: row[10]
+      };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error al retirar paquete:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función extensible para reclamos (ejemplo)
+export function getAllReclamos() {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      SELECT
+        r.ID_reclamo,
+        r.ID_usuario,
+        r.ID_pack,
+        r.descripción,
+        r.status,
+        u.nombre as nombre_residente,
+        u.apellido as apellido_residente,
+        u.N_departamento as departamento
+      FROM reclamos r
+      LEFT JOIN Usuarios u ON r.ID_usuario = u.ID_usuario
+    `;
+   
+    const rows = db.query(query);
+   
+    const reclamos = Array.from(rows, (row) => ({
+      id: row[0],
+      idUsuario: row[1],
+      idPack: row[2],
+      descripcion: row[3],
+      estado: row[4],
+      nombreResidente: row[5],
+      apellidoResidente: row[6],
+      departamento: row[7]
+    }));
+   
+    return reclamos;
+  } catch (error) {
+    console.error("Error al obtener reclamos:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para generar código QR para retiro de paquete
+export function generarCodigoQRRetiro(paqueteId: number, residenteId: number) {
+  const db = new DB(dbPath);
+  try {
+    // Verificar que el paquete existe y pertenece al residente
+    const verificarQuery = `
+      SELECT p.*, u.nombre, u.N_departamento
+      FROM Paquetes p
+      JOIN Usuarios u ON p.ID_userDestinatario = u.ID_usuario
+      WHERE p.ID_pack = ? AND p.ID_userDestinatario = ? AND p.fecha_retiro IS NULL
+    `;
+    
+    const paqueteResult = db.query(verificarQuery, [paqueteId, residenteId]);
+    const paqueteData = Array.from(paqueteResult);
+    
+    if (paqueteData.length === 0) {
+      throw new Error("Paquete no encontrado o ya retirado");
+    }
+    
+    // Generar código QR único
+    const codigoQR = v4.generate();
+    const fechaGeneracion = new Date().toISOString();
+    const fechaExpiracion = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas
+    
+    // Insertar código QR en la tabla (necesitarás crear esta tabla)
+    const insertQRQuery = `
+      INSERT INTO CodigosQR (
+        codigo_qr,
+        ID_paquete,
+        ID_residente,
+        fecha_generacion,
+        fecha_expiracion,
+        estado
+      ) VALUES (?, ?, ?, ?, ?, 'activo')
+    `;
+    
+    db.query(insertQRQuery, [
+      codigoQR,
+      paqueteId,
+      residenteId,
+      fechaGeneracion,
+      fechaExpiracion
+    ]);
+    
+    const paquete = paqueteData[0];
+    
+    return {
+      success: true,
+      codigoQR,
+      paqueteInfo: {
+        id: paquete[0],
+        residente: paquete[6],
+        departamento: paquete[7],
+        fechaEntrega: paquete[2],
+        ubicacion: paquete[4]
+      },
+      fechaExpiracion
+    };
+  } catch (error) {
+    console.error("Error al generar código QR:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para validar y procesar escaneo de QR
+export function procesarEscaneoQR(codigoQR: string, adminId: number) {
+  const db = new DB(dbPath);
+  try {
+    // Buscar el código QR y obtener información del paquete
+    // CAMBIO: Eliminamos el JOIN con admin y agregamos JOIN con el usuario retirador
+    const buscarQRQuery = `
+      SELECT 
+        qr.*,
+        p.*,
+        u_destinatario.nombre as nombre_destinatario,
+        u_destinatario.N_departamento,
+        u_destinatario.telefono,
+        u_retirador.nombre as nombre_retirador
+      FROM CodigosQR qr
+      JOIN Paquetes p ON qr.ID_paquete = p.ID_pack
+      JOIN Usuarios u_destinatario ON p.ID_userDestinatario = u_destinatario.ID_usuario
+      JOIN Usuarios u_retirador ON qr.ID_residente = u_retirador.ID_usuario
+      WHERE qr.codigo_qr = ? AND qr.estado = 'activo'
+    `;
+    
+    const qrResult = db.query(buscarQRQuery, [codigoQR]);
+    const qrData = Array.from(qrResult);
+    
+    if (qrData.length === 0) {
+      return {
+        success: false,
+        error: "Código QR no válido o ya utilizado"
+      };
+    }
+    
+    const data = qrData[0];
+    const fechaActual = new Date().toISOString();
+    
+    console.log("Datos del QR procesado:");
+    console.log("ID QR:", data[0]);
+    console.log("Código QR:", data[1]);
+    console.log("ID Paquete:", data[2]);
+    console.log("ID Residente (quien retira):", data[3]);
+    console.log("ID Pack (desde tabla paquetes):", data[8]);
+    console.log("Nombre destinatario:", data[15]);
+    console.log("Nombre retirador:", data[18]);
+    console.log("Fecha entrega:", data[11]);
+    console.log("Fecha retiro:", data[13]);
+    console.log("================================");
+    console.log("data: " + qrData)
+
+    // Verificar si el código QR ha expirado
+    if (new Date() > new Date(data[5])) { // data[5] es fecha_expiracion
+      return {
+        success: false,
+        error: "Código QR expirado"
+      };
+    }
+    
+    // Verificar si el paquete ya fue retirado
+    if (data[13] !== null) { // data[12] es fecha_retiro
+      return {
+        success: false,
+        error: "Este paquete ya fue retirado"
+      };
+    }
+    
+    // CAMBIO: Actualizar el paquete como retirado con el ID del usuario que generó el QR
+    const retirarQuery = `
+      UPDATE Paquetes 
+      SET fecha_retiro = ?, ID_userRetirador = ?
+      WHERE ID_pack = ?
+    `;
+    
+    db.query(retirarQuery, [fechaActual, data[3], data[8]]); // data[3] es ID_residente (quien retira)
+    
+    // Marcar el código QR como utilizado
+    const actualizarQRQuery = `
+      UPDATE CodigosQR 
+      SET estado = 'utilizado', fecha_uso = ?
+      WHERE codigo_qr = ?
+    `;
+    
+    db.query(actualizarQRQuery, [fechaActual, codigoQR]);
+    
+    return {
+      success: true,
+      paqueteInfo: {
+        ID_pack: data[8], // data[8] es ID_pack
+        destinatario: data[15], // data[14] es nombre_destinatario
+        departamento: data[16], // data[15] es N_departamento
+        telefono: data[17], // data[16] es telefono
+        fechaEntrega: data[11], // data[10] es fecha_entrega
+        ubicacion: data[14], // data[11] es ubicacion
+        fechaRetiro: fechaActual,
+        userRetirador: data[18] // CAMBIO: data[17] es nombre_retirador en lugar de adminRetiro
+      }
+    };
+    
+  } catch (error) {
+    console.error("Error al procesar escaneo QR:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para limpiar códigos QR expirados
+export function limpiarCodigosQRExpirados() {
+  const db = new DB(dbPath);
+  try {
+    const fechaActual = new Date().toISOString();
+    
+    const updateQuery = `
+      UPDATE CodigosQR 
+      SET estado = 'expirado'
+      WHERE fecha_expiracion < ? AND estado = 'activo'
+    `;
+    
+    const result = db.query(updateQuery, [fechaActual]);
+    
+    return {
+      success: true,
+      codigosExpirados: result.length
+    };
+  } catch (error) {
+    console.error("Error al limpiar códigos QR expirados:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+export function updateReclamoStatus(idReclamo: number, nuevoEstado: string) {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      UPDATE reclamos 
+      SET status = ? 
+      WHERE ID_reclamo = ?
+    `;
+    
+    db.query(query, [nuevoEstado, idReclamo]);
+    
+    // Verificar que se actualizó correctamente
+    const verificarQuery = `
+      SELECT * FROM reclamos WHERE ID_reclamo = ?
+    `;
+    
+    const result = db.query(verificarQuery, [idReclamo]);
+    
+    if (result.length === 0) {
+      throw new Error("Reclamo no encontrado");
+    }
+    
+    return {
+      id: result[0][0],
+      idUsuario: result[0][1],
+      idPack: result[0][2],
+      descripcion: result[0][3],
+      status: result[0][4]
+    };
+  } catch (error) {
+    console.error("Error al actualizar estado del reclamo:", error.message);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+// Función para crear un reclamo
+export function crearReclamo(idUsuario: number, idPack: number, descripcion: string) {
+  const db = new DB(dbPath);
+  try {
+    const query = `
+      INSERT INTO reclamos (ID_usuario, ID_pack, descripción, status)
+      VALUES (?, ?, ?, 'pendiente')
+    `;
+    
+    const result = db.query(query, [idUsuario, idPack, descripcion]);
+    
+    // Obtener el ID del reclamo recién creado
+    const reclamoId = db.lastInsertRowId;
+    
+    return {
+      id: reclamoId,
+      idUsuario,
+      idPack,
+      descripcion,
+      status: 'pendiente'
+    };
+  } catch (error) {
+    console.error("Error al crear reclamo:", error.message);
     throw error;
   } finally {
     db.close();

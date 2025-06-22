@@ -11,7 +11,16 @@ import {
   registrarEstadoNotificacionWhatsApp,
   createUser,
   getResidentPackages,
-  getPaquetesPorVencer
+  getPaquetesPorVencer,
+  getPaquetesPendientes,
+  getEstadisticasPaquetes,
+  getAllReclamos,
+  retirarPaquete,
+  generarCodigoQRRetiro,
+  procesarEscaneoQR,
+  limpiarCodigosQRExpirados,
+  updateReclamoStatus,
+  crearReclamo
 } from "./app/db/statements.ts";
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
@@ -626,7 +635,7 @@ if (url.pathname === "/api/webhook/whatsapp" && req.method === "GET") {
       console.log("Esperando datos");
       const body = await req.json();
       console.log("sleep para ver el toast")
-      await sleep(2000);
+      //await sleep(2000);
       const { username, password } = body;
       console.log("Datos obtenidos:" + body);
       console.log("verificando si se entregaron ambas")
@@ -944,6 +953,645 @@ if (url.pathname === "/api/users" && req.method === "POST") {
     return new Response(JSON.stringify({
       success: false,
       message: error instanceof Error ? error.message : "Error al crear usuario",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Obtener paquetes pendientes
+if (url.pathname === "/api/paquetes/pendientes" && req.method === "GET") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+    
+    console.log("Obteniendo paquetes pendientes");
+    const paquetes = await getPaquetesPendientes();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: paquetes
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al obtener paquetes pendientes:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al obtener paquetes pendientes",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Obtener estadísticas de paquetes
+if (url.pathname === "/api/paquetes/estadisticas" && req.method === "GET") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+    
+    console.log("Obteniendo estadísticas de paquetes");
+    const estadisticas = await getEstadisticasPaquetes();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: estadisticas
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al obtener estadísticas:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al obtener estadísticas",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Retirar paquete
+if (url.pathname.startsWith("/api/paquetes/") && url.pathname.endsWith("/retirar") && req.method === "POST") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    // Extraer el ID del paquete de la URL
+    const pathParts = url.pathname.split('/');
+    const packageId = parseInt(pathParts[3]);
+    console.log("ID paquete: " + packageId);
+    
+    if (isNaN(packageId)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "ID de paquete inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    const tokenResult = verifyToken(token);
+
+    // Manejar la respuesta de verifyToken correctamente
+    let userId;
+    if (typeof tokenResult === 'object' && tokenResult !== null) {
+      // Si verifyToken devuelve un objeto { valid: boolean, userId?: number }
+      if (!tokenResult.valid || !tokenResult.userId) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Token inválido o expirado"
+        }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          },
+          status: 401
+        });
+      }
+      userId = tokenResult.userId;
+    } else {
+      // Si verifyToken devuelve directamente el userId o null/undefined
+      if (!tokenResult) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Token inválido o expirado"
+        }), {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          },
+          status: 401
+        });
+      }
+      userId = tokenResult;
+    }
+
+    console.log("userID: " + userId)
+
+    console.log(`Retirando paquete ${packageId} por usuario ${userId}`);
+    const result = await retirarPaquete(packageId, userId);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: result
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al retirar paquete:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al retirar paquete",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Obtener todos los reclamos (ejemplo extensible)
+if (url.pathname === "/api/reclamos" && req.method === "GET") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+    
+    console.log("Obteniendo lista de reclamos");
+    const reclamos = await getAllReclamos();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: reclamos
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al obtener reclamos:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al obtener reclamos",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+// Endpoint para generar código QR de retiro
+if (url.pathname === "/api/resident/generate-qr" && req.method === "POST") {
+  try {
+    // Verificar autenticación
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token de autorización requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const userData = verifyToken(token);
+    
+    if (!userData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const body = await req.json();
+    const { paqueteId } = body;
+
+    if (!paqueteId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "ID del paquete requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Generar código QR
+    const resultado = generarCodigoQRRetiro(paqueteId, userData.userId);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: resultado
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+
+  } catch (error) {
+    console.error("Error al generar código QR:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || "Error interno del servidor"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// Endpoint para procesar escaneo de QR
+if (url.pathname === "/api/admin/scan-qr" && req.method === "POST") {
+  try {
+    // Verificar autenticación
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token de autorización requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const userData = verifyToken(token);
+    
+    if (!userData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Token inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    //
+    if (!userData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Acceso denegado. Solo administradores y conserjes pueden escanear códigos QR"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 403
+      });
+    }
+
+    const body = await req.json();
+    const { codigoQR } = body;
+
+    if (!codigoQR) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Código QR requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Procesar escaneo
+    const resultado = procesarEscaneoQR(codigoQR, userData.userId);
+    
+    return new Response(JSON.stringify({
+      success: resultado.success,
+      data: resultado.success ? resultado.paqueteInfo : null,
+      error: resultado.success ? null : resultado.error
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: resultado.success ? 200 : 400
+    });
+
+  } catch (error) {
+    console.error("Error al procesar escaneo QR:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || "Error interno del servidor"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// Endpoint para limpiar códigos QR expirados
+if (url.pathname === "/api/admin/cleanup-expired-qr" && req.method === "POST") {
+  try {
+    const resultado = limpiarCodigosQRExpirados();
+    
+    return new Response(JSON.stringify({
+      success: true,
+      data: resultado
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+
+  } catch (error) {
+    console.error("Error al limpiar códigos QR:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || "Error al limpiar códigos QR"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// NUEVO ENDPOINT en server.ts - Actualizar estado de reclamo
+if (url.pathname.startsWith("/api/reclamos/") && req.method === "PUT") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+   
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    // Extraer ID del reclamo de la URL
+    const pathParts = url.pathname.split("/");
+    const reclamoId = parseInt(pathParts[pathParts.length - 1]);
+    
+    if (isNaN(reclamoId)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "ID de reclamo inválido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    const requestBody = await req.json();
+    const { status } = requestBody;
+
+    if (!status) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Estado requerido"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    // Validar estados permitidos
+    const estadosValidos = ['pendiente', 'en_revision', 'completado'];
+    if (!estadosValidos.includes(status)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Estado no válido. Estados permitidos: " + estadosValidos.join(', ')
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+   
+    console.log(`Actualizando reclamo ${reclamoId} a estado: ${status}`);
+    const reclamoActualizado = await updateReclamoStatus(reclamoId, status);
+   
+    return new Response(JSON.stringify({
+      success: true,
+      data: reclamoActualizado,
+      message: "Estado del reclamo actualizado correctamente"
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 200
+    });
+  } catch (error) {
+    console.error("Error al actualizar estado del reclamo:", error);
+   
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al actualizar estado del reclamo",
+      details: error instanceof Error ? error.message : String(error)
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 500
+    });
+  }
+}
+
+// ENDPOINT: Crear reclamo de residente
+if (url.pathname === "/api/resident/complaint" && req.method === "POST") {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.split("Bearer ")[1];
+    
+    if (!token || !verifyToken(token)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "No autorizado"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 401
+      });
+    }
+
+    const tokenData = verifyToken(token);
+    const userId = tokenData.userId;
+    
+    const body = await req.json();
+    const { packageId, description } = body;
+    
+    // Validaciones
+    if (!packageId || !description) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Faltan datos requeridos"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    if (description.trim().length < 10) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "La descripción debe tener al menos 10 caracteres"
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
+        status: 400
+      });
+    }
+
+    console.log(`Creando reclamo para usuario ${userId}, paquete ${packageId}`);
+    
+    // Importar la función (agregar a la línea de imports al inicio del archivo)
+    const reclamo = await crearReclamo(userId, packageId, description.trim());
+    
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Reclamo creado exitosamente",
+      data: reclamo
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
+      status: 201
+    });
+    
+  } catch (error) {
+    console.error("Error al crear reclamo:", error);
+    
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Error al procesar el reclamo",
       details: error instanceof Error ? error.message : String(error)
     }), {
       headers: {
