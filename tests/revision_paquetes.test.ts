@@ -1,16 +1,22 @@
 // revision_paquetes.test.ts
-import { assertEquals, assertRejects } from "https://deno.land/std@0.219.0/testing/asserts.ts";
-import { assertSpyCall, assertSpyCalls, spy, stub, restore } from "https://deno.land/std@0.219.0/testing/mock.ts";
+import { assertEquals } from "https://deno.land/std@0.219.0/testing/asserts.ts";
+import { assertSpyCall, assertSpyCalls, spy, restore } from "https://deno.land/std@0.219.0/testing/mock.ts";
 import { describe, it, beforeEach, afterEach } from "https://deno.land/std@0.219.0/testing/bdd.ts";
 
-// Función sleep que necesitamos para las pruebas
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// Importar las funciones y tipos del archivo principal
+import {
+  revisarPaquetesPorVencer,
+  iniciarRevisionPeriodica,
+  sleep,
+  type Paquete,
+  type ContactoUsuario,
+  type RegistroNotificacion,
+  type RevisionDependencies
+} from "./revision_paquetes.ts";
 
 // Variables para simular las funciones de base de datos
-let mockPaquetesData: any[] = [];
-let mockContactoData: any = { success: false };
+let mockPaquetesData: Paquete[] = [];
+let mockContactoData: ContactoUsuario | ContactoUsuario[] = { success: false };
 let mockEnvioExitoso = false;
 let mockDbError: Error | null = null;
 let mockContactoError: Error | null = null;
@@ -18,14 +24,14 @@ let mockEnvioError: Error | null = null;
 let contadorLlamadasContacto = 0;
 
 // Funciones mock que simulan el comportamiento de las funciones reales
-async function mockGetPaquetesPorVencer(diasAntes: number): Promise<any[]> {
+async function mockGetPaquetesPorVencer(diasAntes: number): Promise<Paquete[]> {
   if (mockDbError) {
     throw mockDbError;
   }
   return mockPaquetesData;
 }
 
-async function mockGetUsuarioContactInfo(idUsuario: number): Promise<any> {
+async function mockGetUsuarioContactInfo(idUsuario: number): Promise<ContactoUsuario> {
   if (mockContactoError) {
     throw mockContactoError;
   }
@@ -37,14 +43,14 @@ async function mockGetUsuarioContactInfo(idUsuario: number): Promise<any> {
     return resultado;
   }
   
-  return mockContactoData;
+  return mockContactoData as ContactoUsuario;
 }
 
 async function mockRegistrarEstadoNotificacionWhatsApp(
   idPaquete: number,
   idUsuario: number,
   estado: string
-): Promise<any> {
+): Promise<RegistroNotificacion> {
   return { success: true };
 }
 
@@ -55,96 +61,18 @@ async function mockEnviarMensajeTemplate(telefono: string): Promise<boolean> {
   return mockEnvioExitoso;
 }
 
-// Función principal a probar - adaptada con las funciones mock
-async function revisarPaquetesPorVencer(): Promise<void> {
-  console.log("🔍 Iniciando revisión de paquetes próximos a vencer...");
-  
-  try {
-    // Obtener paquetes que vencen en 3 días
-    const paquetesPorVencer = await mockGetPaquetesPorVencer(3);
-    
-    if (paquetesPorVencer.length === 0) {
-      console.log("✅ No hay paquetes próximos a vencer");
-      return;
-    }
-    
-    console.log(`📦 Encontrados ${paquetesPorVencer.length} paquetes próximos a vencer`);
-    
-    for (const paquete of paquetesPorVencer) {
-      try {
-        console.log(`📱 Procesando paquete ID: ${paquete.ID_pack} para ${paquete.nombre_destinatario}`);
-        
-        // Verificar si ya se envió notificación de vencimiento para este paquete
-        if (paquete.notificacion_vencimiento_enviada) {
-          console.log(`⚠️ Ya se envió notificación de vencimiento para paquete ${paquete.ID_pack}`);
-          continue;
-        }
-        
-        // Obtener información de contacto del destinatario
-        const contactoUsuario = await mockGetUsuarioContactInfo(paquete.ID_userDestinatario);
-        
-        if (!contactoUsuario.success || !contactoUsuario.data.telefono) {
-          console.log(`❌ No se pudo obtener teléfono para usuario ${paquete.ID_userDestinatario}`);
-          continue;
-        }
-        
-        // Enviar notificación por WhatsApp
-        console.log(`📲 Enviando notificación de vencimiento a ${contactoUsuario.data.telefono}`);
-        
-        const envioExitoso = await mockEnviarMensajeTemplate(contactoUsuario.data.telefono);
-        
-        if (envioExitoso) {
-          // Registrar que se envió la notificación de vencimiento
-          await mockRegistrarEstadoNotificacionWhatsApp(
-            paquete.ID_pack,
-            paquete.ID_userDestinatario,
-            "notificacion_vencimiento_enviada"
-          );
-          
-          console.log(`✅ Notificación de vencimiento enviada para paquete ${paquete.ID_pack}`);
-        } else {
-          console.log(`❌ Error al enviar notificación de vencimiento para paquete ${paquete.ID_pack}`);
-          
-          await mockRegistrarEstadoNotificacionWhatsApp(
-            paquete.ID_pack,
-            paquete.ID_userDestinatario,
-            "error_notificacion_vencimiento"
-          );
-        }
-        
-        // Pequeña pausa entre envíos para no saturar la API
-        await sleep(1);
-        
-      } catch (error) {
-        console.error(`❌ Error procesando paquete ${paquete.ID_pack}:`, error);
-      }
-    }
-    
-    console.log("✅ Revisión de paquetes próximos a vencer completada");
-    
-  } catch (error) {
-    console.error("❌ Error en revisión de paquetes por vencer:", error);
-  }
+async function mockSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Función para iniciar revisión periódica (simulada para pruebas)
-async function iniciarRevisionPeriodica(): Promise<{ intervalId: number }> {
-  console.log("⏰ Iniciando sistema de revisión periódica de paquetes...");
-  
-  // Ejecutar inmediatamente al iniciar
-  await revisarPaquetesPorVencer();
-  
-  // Ejecutar cada 24 horas (para pruebas usamos 100ms)
-  const intervalId = setInterval(() => {
-    const ahora = new Date();
-    console.log(`⏰ Ejecutando revisión programada - ${ahora.toLocaleString('es-ES')}`);
-    revisarPaquetesPorVencer();
-  }, 100); // 100ms para pruebas, en producción sería 24 * 60 * 60 * 1000
-  
-  console.log("✅ Sistema de revisión periódica configurado");
-  
-  return { intervalId };
-}
+// Crear objeto de dependencias mock
+const createMockDeps = (): RevisionDependencies => ({
+  getPaquetesPorVencer: mockGetPaquetesPorVencer,
+  getUsuarioContactInfo: mockGetUsuarioContactInfo,
+  registrarEstadoNotificacionWhatsApp: mockRegistrarEstadoNotificacionWhatsApp,
+  enviarMensajeTemplate: mockEnviarMensajeTemplate,
+  sleep: mockSleep
+});
 
 describe("Revisión de Paquetes Por Vencer", () => {
   let consoleLogSpy: any;
@@ -174,9 +102,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
     it("debería manejar correctamente cuando no hay paquetes por vencer", async () => {
       // Arrange
       mockPaquetesData = [];
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 2);
@@ -205,9 +134,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
       };
 
       mockEnvioExitoso = true;
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 6);
@@ -229,9 +159,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
           notificacion_vencimiento_enviada: true
         }
       ];
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 5);
@@ -257,9 +188,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
         success: false,
         error: "Usuario no encontrado"
       };
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 5);
@@ -286,12 +218,13 @@ describe("Revisión de Paquetes Por Vencer", () => {
         data: {
           nombre: "Ana",
           apellido: "Silva",
-          telefono: null // Sin teléfono
+          telefono: "" // Sin teléfono
         }
       };
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 5);
@@ -319,9 +252,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
       };
 
       mockEnvioExitoso = false; // Simular fallo
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 6);
@@ -357,9 +291,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
       ];
 
       mockEnvioExitoso = true;
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 9);
@@ -402,9 +337,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
       ];
 
       mockEnvioExitoso = true;
+      const deps = createMockDeps();
 
       // Act
-      await revisarPaquetesPorVencer();
+      await revisarPaquetesPorVencer(deps);
 
       // Assert
       assertSpyCalls(consoleLogSpy, 8);
@@ -432,9 +368,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
     it("debería iniciar el sistema y ejecutar revisión inmediata", async () => {
       // Arrange
       mockPaquetesData = [];
+      const deps = createMockDeps();
 
       // Act
-      const resultado = await iniciarRevisionPeriodica();
+      const resultado = await iniciarRevisionPeriodica(deps);
       intervalIds.push(resultado.intervalId);
 
       // Assert
@@ -450,9 +387,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
     it("debería ejecutar revisiones periódicas", async () => {
       // Arrange
       mockPaquetesData = [];
+      const deps = createMockDeps();
 
       // Act
-      const resultado = await iniciarRevisionPeriodica();
+      const resultado = await iniciarRevisionPeriodica(deps);
       intervalIds.push(resultado.intervalId);
 
       // Esperar tiempo suficiente para al menos 2 ejecuciones adicionales del intervalo
@@ -498,9 +436,10 @@ describe("Revisión de Paquetes Por Vencer", () => {
       };
 
       mockEnvioExitoso = true;
+      const deps = createMockDeps();
 
       // Act
-      const resultado = await iniciarRevisionPeriodica();
+      const resultado = await iniciarRevisionPeriodica(deps);
       intervalIds.push(resultado.intervalId);
 
       // Esperar tiempo suficiente para ejecuciones del intervalo
