@@ -353,6 +353,131 @@ describe("Revisión de Paquetes Por Vencer", () => {
       assertSpyCall(consoleLogSpy, 6, { args: ["✅ Notificación de vencimiento enviada para paquete 9"] });
       assertSpyCall(consoleLogSpy, 7, { args: ["✅ Revisión de paquetes próximos a vencer completada"] });
     });
+
+    it("debería manejar error al obtener paquetes de la base de datos", async () => {
+      // Arrange
+      mockDbError = new Error("Error de conexión a base de datos");
+      const deps = createMockDeps();
+
+      // Act
+      await revisarPaquetesPorVencer(deps);
+
+      // Assert
+      assertSpyCalls(consoleLogSpy, 1);
+      assertSpyCalls(consoleErrorSpy, 1);
+      assertSpyCall(consoleLogSpy, 0, { args: ["🔍 Iniciando revisión de paquetes próximos a vencer..."] });
+      assertSpyCall(consoleErrorSpy, 0, { 
+        args: ["❌ Error en revisión de paquetes por vencer:", mockDbError] 
+      });
+    });
+
+    it("debería manejar errores de excepción al obtener información de contacto", async () => {
+      // Arrange
+      mockPaquetesData = [
+        {
+          ID_pack: 11,
+          ID_userDestinatario: 111,
+          nombre_destinatario: "Error Contact",
+          notificacion_vencimiento_enviada: false
+        }
+      ];
+
+      mockContactoError = new Error("Error al consultar contacto");
+      const deps = createMockDeps();
+
+      // Act
+      await revisarPaquetesPorVencer(deps);
+
+      // Assert
+      assertSpyCalls(consoleLogSpy, 4);
+      assertSpyCalls(consoleErrorSpy, 1);
+      assertSpyCall(consoleLogSpy, 0, { args: ["🔍 Iniciando revisión de paquetes próximos a vencer..."] });
+      assertSpyCall(consoleLogSpy, 1, { args: ["📦 Encontrados 1 paquetes próximos a vencer"] });
+      assertSpyCall(consoleLogSpy, 2, { args: ["📱 Procesando paquete ID: 11 para Error Contact"] });
+      assertSpyCall(consoleErrorSpy, 0, { 
+        args: ["❌ Error procesando paquete 11:", mockContactoError] 
+      });
+      assertSpyCall(consoleLogSpy, 3, { args: ["✅ Revisión de paquetes próximos a vencer completada"] });
+    });
+
+    it("debería manejar errores de excepción al enviar mensaje", async () => {
+      // Arrange
+      mockPaquetesData = [
+        {
+          ID_pack: 12,
+          ID_userDestinatario: 112,
+          nombre_destinatario: "Error Envío",
+          notificacion_vencimiento_enviada: false
+        }
+      ];
+
+      mockContactoData = {
+        success: true,
+        data: {
+          nombre: "Error",
+          apellido: "Envío",
+          telefono: "+56988888888"
+        }
+      };
+
+      mockEnvioError = new Error("Error de API WhatsApp");
+      const deps = createMockDeps();
+
+      // Act
+      await revisarPaquetesPorVencer(deps);
+
+      // Assert
+      assertSpyCalls(consoleLogSpy, 5);
+      assertSpyCalls(consoleErrorSpy, 1);
+      assertSpyCall(consoleLogSpy, 0, { args: ["🔍 Iniciando revisión de paquetes próximos a vencer..."] });
+      assertSpyCall(consoleLogSpy, 1, { args: ["📦 Encontrados 1 paquetes próximos a vencer"] });
+      assertSpyCall(consoleLogSpy, 2, { args: ["📱 Procesando paquete ID: 12 para Error Envío"] });
+      assertSpyCall(consoleLogSpy, 3, { args: ["📲 Enviando notificación de vencimiento a +56988888888"] });
+      assertSpyCall(consoleErrorSpy, 0, { 
+        args: ["❌ Error procesando paquete 12:", mockEnvioError] 
+      });
+      assertSpyCall(consoleLogSpy, 4, { args: ["✅ Revisión de paquetes próximos a vencer completada"] });
+    });
+
+    it("debería registrar estado de error cuando falla el envío", async () => {
+      // Arrange
+      mockPaquetesData = [
+        {
+          ID_pack: 13,
+          ID_userDestinatario: 113,
+          nombre_destinatario: "Fallo Envío",
+          notificacion_vencimiento_enviada: false
+        }
+      ];
+
+      mockContactoData = {
+        success: true,
+        data: {
+          nombre: "Fallo",
+          apellido: "Envío",
+          telefono: "+56977777777"
+        }
+      };
+
+      mockEnvioExitoso = false;
+      const deps = createMockDeps();
+      
+      // Crear spy para verificar que se llama registrarEstadoNotificacionWhatsApp con estado de error
+      const registrarSpy = spy(deps, "registrarEstadoNotificacionWhatsApp");
+
+      // Act
+      await revisarPaquetesPorVencer(deps);
+
+      // Assert
+      assertSpyCalls(consoleLogSpy, 6);
+      assertSpyCall(consoleLogSpy, 4, { args: ["❌ Error al enviar notificación de vencimiento para paquete 13"] });
+      
+      // Verificar que se registró el estado de error
+      assertSpyCalls(registrarSpy, 1);
+      assertSpyCall(registrarSpy, 0, { 
+        args: [13, 113, "error_notificacion_vencimiento"] 
+      });
+    });
   });
 
   describe("iniciarRevisionPeriodica", () => {
