@@ -25,6 +25,12 @@ import {
 import { corsHeaders } from "./cors.ts";
 import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
 import { enviarMensajeTemplate, enviarMensajeDetallado } from "./app/services/whatsappService.ts";
+import { testConnection } from "./app/db/statements.ts";
+
+// Probar conexión al inicio
+const connectionTest = await testConnection();
+console.log("Test de conexión:", connectionTest);
+
 
 
 async function sleep(ms: number): Promise<void> {
@@ -748,8 +754,9 @@ if (url.pathname === "/api/resident/packages" && req.method === "GET") {
     console.log(`=== FIN AUTH ===`);
 
     // Obtener paquetes del residente
-    const result = getResidentPackages(userId);
-    
+    const result = await getResidentPackages(userId);
+    console.log("salimos de la query")
+    console.log("success?: "+ result.success);
     if (result.success) {
       return new Response(JSON.stringify({
         success: true,
@@ -764,6 +771,7 @@ if (url.pathname === "/api/resident/packages" && req.method === "GET") {
         status: 200
       });
     } else {
+      console.log("estamos en mala response")
       return new Response(JSON.stringify({
         success: false,
         error: result.error
@@ -1215,7 +1223,7 @@ if (url.pathname === "/api/resident/generate-qr" && req.method === "POST") {
     }
 
     // Generar código QR
-    const resultado = generarCodigoQRRetiro(paqueteId, userData.userId);
+    const resultado = await generarCodigoQRRetiro(paqueteId, userData.userId);
     
     return new Response(JSON.stringify({
       success: true,
@@ -1308,7 +1316,7 @@ if (url.pathname === "/api/admin/scan-qr" && req.method === "POST") {
     }
 
     // Procesar escaneo
-    const resultado = procesarEscaneoQR(codigoQR, userData.userId);
+    const resultado = await procesarEscaneoQR(codigoQR, userData.userId);
     
     return new Response(JSON.stringify({
       success: resultado.success,
@@ -1340,7 +1348,7 @@ if (url.pathname === "/api/admin/scan-qr" && req.method === "POST") {
 // Endpoint para limpiar códigos QR expirados
 if (url.pathname === "/api/admin/cleanup-expired-qr" && req.method === "POST") {
   try {
-    const resultado = limpiarCodigosQRExpirados();
+    const resultado = await limpiarCodigosQRExpirados();
     
     return new Response(JSON.stringify({
       success: true,
