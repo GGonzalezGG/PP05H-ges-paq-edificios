@@ -27,6 +27,7 @@ import { addValidToken, verifyToken, removeToken } from "./app/db/auth.ts";
 import { enviarMensajeTemplate, enviarMensajeDetallado } from "./app/services/whatsappService.ts";
 import { testConnection } from "./app/db/statements.ts";
 
+console.log("iniciando test de conexión");
 // Probar conexión al inicio
 const connectionTest = await testConnection();
 console.log("Test de conexión:", connectionTest);

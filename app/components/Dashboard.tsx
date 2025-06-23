@@ -18,11 +18,17 @@ interface DashboardItem {
   departamento?: string;
   nombreRetirador?: string;
   apellidoRetirador?: string;
-  // Para reclamos (extensible)
+  // Para reclamos
+  idUsuario?: number;
+  idPack?: number;
+  nombreResidente?: string;
+  apellidoResidente?: string;
   tipo?: string;
   estado?: string;
   descripcion?: string;
   fechaCreacion?: string;
+  ubicacionPaquete?: string;
+  fechaEntregaPaquete?: string;
 }
 
 interface DashboardConfig {
@@ -50,6 +56,7 @@ interface DashboardProps {
   onComplaintPackage?: (packageId: number) => void;
   onStatusChange?: (itemId: number, newStatus: string) => Promise<void>;
 }
+
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   config, 
@@ -90,7 +97,39 @@ const Dashboard: React.FC<DashboardProps> = ({
       const data = await response.json();
       
       if (data.success) {
-        setItems(data.data || []);
+        // Procesar los datos para normalizar las propiedades
+        const processedData = (data.data || []).map((item: any) => {
+          // Normalizar propiedades que pueden venir en diferentes casos
+          const normalizedItem: DashboardItem = {
+            id: item.id,
+            // Para paquetes
+            idDestinatario: item.idDestinatario || item.iddestinatario,
+            idRetirador: item.idRetirador || item.idretirador,
+            fechaEntrega: item.fechaEntrega || item.fechaentrega,
+            fechaLimite: item.fechaLimite || item.fechalimite,
+            fechaRetiro: item.fechaRetiro || item.fecharetiro,
+            ubicacion: item.ubicacion,
+            nombreDestinatario: item.nombreDestinatario || item.nombredestinatario,
+            apellidoDestinatario: item.apellidoDestinatario || item.apellidodestinatario,
+            departamento: item.departamento,
+            nombreRetirador: item.nombreRetirador || item.nombreretirador,
+            apellidoRetirador: item.apellidoRetirador || item.apellidoretirador,
+            // Para reclamos
+            idUsuario: item.idUsuario || item.idusuario,
+            idPack: item.idPack || item.idpack,
+            nombreResidente: item.nombreResidente || item.nombreresidente,
+            apellidoResidente: item.apellidoResidente || item.apellidoresidente,
+            estado: item.estado,
+            descripcion: item.descripcion,
+            fechaCreacion: item.fechaCreacion || item.fechacreacion,
+            ubicacionPaquete: item.ubicacionPaquete || item.ubicacionpaquete,
+            fechaEntregaPaquete: item.fechaEntregaPaquete || item.fechaentregapaquete,
+          };
+          
+          return normalizedItem;
+        });
+        
+        setItems(processedData);
         setLastUpdate(new Date());
         setError(null);
       } else {
@@ -118,7 +157,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
     try {
-      return new Date(dateString).toLocaleDateString('es-CL', {
+      const date = new Date(dateString);
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) {
+        return 'Fecha inválida';
+      }
+      return date.toLocaleDateString('es-CL', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -126,7 +170,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         minute: '2-digit'
       });
     } catch {
-      return dateString;
+      return 'Fecha inválida';
     }
   };
 
