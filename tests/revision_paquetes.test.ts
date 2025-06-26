@@ -8,6 +8,10 @@ import {
   revisarPaquetesPorVencer,
   iniciarRevisionPeriodica,
   sleep,
+  getPaquetesPorVencer,
+  getUsuarioContactInfo,
+  registrarEstadoNotificacionWhatsApp,
+  enviarMensajeTemplate,
   type Paquete,
   type ContactoUsuario,
   type RegistroNotificacion,
@@ -99,6 +103,7 @@ describe("Revisión de Paquetes Por Vencer", () => {
   });
 
   describe("revisarPaquetesPorVencer", () => {
+    
     it("debería manejar correctamente cuando no hay paquetes por vencer", async () => {
       // Arrange
       mockPaquetesData = [];
@@ -478,6 +483,105 @@ describe("Revisión de Paquetes Por Vencer", () => {
         args: [13, 113, "error_notificacion_vencimiento"] 
       });
     });
+
+    it("debería manejar un escenario mixto completo con todos los casos posibles", async () => {
+      // Arrange - Escenario que combina múltiples casos reales
+      mockPaquetesData = [
+        {
+          ID_pack: 100,
+          ID_userDestinatario: 200,
+          nombre_destinatario: "Usuario Con Notificación Previa",
+          notificacion_vencimiento_enviada: true
+        },
+        {
+          ID_pack: 101,
+          ID_userDestinatario: 201,
+          nombre_destinatario: "Usuario Sin Teléfono",
+          notificacion_vencimiento_enviada: false
+        },
+        {
+          ID_pack: 102,
+          ID_userDestinatario: 202,
+          nombre_destinatario: "Usuario Exitoso",
+          notificacion_vencimiento_enviada: false
+        },
+        {
+          ID_pack: 103,
+          ID_userDestinatario: 203,
+          nombre_destinatario: "Usuario Fallo Envío",
+          notificacion_vencimiento_enviada: false
+        }
+      ];
+
+      // Resetear el contador antes de configurar los datos
+      contadorLlamadasContacto = 0;
+      
+      // Configurar respuestas para cada llamada en orden
+      mockContactoData = [
+        { success: true, data: { nombre: "Sin", apellido: "Telefono", telefono: "" } }, // Para ID 201 - Sin teléfono
+        { success: true, data: { nombre: "Usuario", apellido: "Exitoso", telefono: "+56911111111" } }, // Para ID 202 - Exitoso
+        { success: true, data: { nombre: "Fallo", apellido: "Envio", telefono: "+56922222222" } } // Para ID 203 - Fallo envío
+      ];
+
+      // Configurar que el envío falle solo para un teléfono específico
+      mockEnvioExitoso = true; // Por defecto exitoso
+      
+      // Crear una función mock personalizada para el envío
+      async function mockEnviarMensajeEspecifico(telefono: string): Promise<boolean> {
+        if (telefono === "+56922222222") {
+          return false; // Falla para este teléfono específico
+        }
+        return true; // Éxito para los demás
+      }
+
+      const deps: RevisionDependencies = {
+        getPaquetesPorVencer: mockGetPaquetesPorVencer,
+        getUsuarioContactInfo: mockGetUsuarioContactInfo,
+        registrarEstadoNotificacionWhatsApp: mockRegistrarEstadoNotificacionWhatsApp,
+        enviarMensajeTemplate: mockEnviarMensajeEspecifico,
+        sleep: mockSleep
+      };
+
+      // Act
+      await revisarPaquetesPorVencer(deps);
+
+      // Assert - Verificar que se encontraron los 4 paquetes
+      assertSpyCall(consoleLogSpy, 1, { args: ["📦 Encontrados 4 paquetes próximos a vencer"] });
+
+      // Verificar que se procesaron todos los paquetes (4 mensajes de procesamiento)
+      const logsProcessing = consoleLogSpy.calls.filter((call: any) => 
+        call.args[0] && call.args[0].includes("📱 Procesando paquete ID:")
+      );
+      assertEquals(logsProcessing.length, 4);
+
+      // Verificar casos específicos
+      const hasNotificationAlreadySent = consoleLogSpy.calls.some((call: any) => 
+        call.args[0] && call.args[0].includes("⚠️ Ya se envió notificación de vencimiento para paquete 100")
+      );
+      assertEquals(hasNotificationAlreadySent, true);
+
+      const hasPhoneError = consoleLogSpy.calls.some((call: any) => 
+        call.args[0] && call.args[0].includes("❌ No se pudo obtener teléfono para usuario 201")
+      );
+      assertEquals(hasPhoneError, true);
+
+      const hasSuccessfulSend = consoleLogSpy.calls.some((call: any) => 
+        call.args[0] && call.args[0].includes("✅ Notificación de vencimiento enviada para paquete 102")
+      );
+      assertEquals(hasSuccessfulSend, true);
+
+      const hasFailedSend = consoleLogSpy.calls.some((call: any) => 
+        call.args[0] && call.args[0].includes("❌ Error al enviar notificación de vencimiento para paquete 103")
+      );
+      assertEquals(hasFailedSend, true);
+
+      // Verificar que terminó correctamente
+      const hasCompletionMessage = consoleLogSpy.calls.some((call: any) => 
+        call.args[0] && call.args[0].includes("✅ Revisión de paquetes próximos a vencer completada")
+      );
+      assertEquals(hasCompletionMessage, true);
+    });
+
   });
 
   describe("iniciarRevisionPeriodica", () => {
@@ -581,4 +685,82 @@ describe("Revisión de Paquetes Por Vencer", () => {
       assertEquals(processingLogs.length >= 2, true); // Al menos inicial + 1 periódica
     });
   });
+
+  describe("Funciones Mock por Defecto", () => {
+    it("debería ejecutar getPaquetesPorVencer con comportamiento mock por defecto", async () => {
+      // Act
+      const resultado = await getPaquetesPorVencer(3);
+
+      // Assert
+      assertEquals(resultado, []);
+      assertEquals(Array.isArray(resultado), true);
+    });
+
+    it("debería ejecutar getUsuarioContactInfo con comportamiento mock por defecto", async () => {
+      // Act
+      const resultado = await getUsuarioContactInfo(123);
+
+      // Assert
+      assertEquals(resultado.success, false);
+      assertEquals(resultado.data, undefined);
+      assertEquals(resultado.error, undefined);
+    });
+
+    it("debería ejecutar registrarEstadoNotificacionWhatsApp con comportamiento mock por defecto", async () => {
+      // Act
+      const resultado = await registrarEstadoNotificacionWhatsApp(1, 100, "test");
+
+      // Assert
+      assertEquals(resultado.success, true);
+    });
+
+    it("debería ejecutar enviarMensajeTemplate con comportamiento mock por defecto", async () => {
+      // Act
+      const resultado = await enviarMensajeTemplate("+56912345678");
+
+      // Assert
+      assertEquals(resultado, false);
+    });
+  });
+
+  describe("Funciones Principales con Dependencias por Defecto", () => {
+    it("debería ejecutar revisarPaquetesPorVencer sin parámetros (usando dependencias por defecto)", async () => {
+      // Arrange - No pasar dependencias para usar las por defecto
+      
+      // Act
+      await revisarPaquetesPorVencer();
+
+      // Assert
+      assertSpyCalls(consoleLogSpy, 2);
+      assertSpyCall(consoleLogSpy, 0, { args: ["🔍 Iniciando revisión de paquetes próximos a vencer..."] });
+      assertSpyCall(consoleLogSpy, 1, { args: ["✅ No hay paquetes próximos a vencer"] });
+    });
+
+    it("debería ejecutar iniciarRevisionPeriodica sin parámetros (usando dependencias por defecto)", async () => {
+      // Arrange
+      let intervalId: number;
+
+      try {
+        // Act
+        const resultado = await iniciarRevisionPeriodica();
+        intervalId = resultado.intervalId;
+
+        // Assert
+        assertEquals(typeof resultado.intervalId, "number");
+        
+        // Verificar logs iniciales
+        assertSpyCall(consoleLogSpy, 0, { args: ["⏰ Iniciando sistema de revisión periódica de paquetes..."] });
+        assertSpyCall(consoleLogSpy, 1, { args: ["🔍 Iniciando revisión de paquetes próximos a vencer..."] });
+        assertSpyCall(consoleLogSpy, 2, { args: ["✅ No hay paquetes próximos a vencer"] });
+        assertSpyCall(consoleLogSpy, 3, { args: ["✅ Sistema de revisión periódica configurado"] });
+
+      } finally {
+        // Cleanup - Limpiar el intervalo
+        if (intervalId!) {
+          clearInterval(intervalId);
+        }
+      }
+    });
+  });
+
 });
